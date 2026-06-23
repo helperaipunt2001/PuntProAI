@@ -68,13 +68,4 @@ export default async function handler(req, res) {
   } catch (err) {
     return res.status(500).json({ error: err.message || 'Internal server error' });
   }
-}        debug: text.slice(0, 500)
-      });
-    }
-
-    return res.status(200).json(parsed);
-
-  } catch (err) {
-    return res.status(500).json({ error: err.message || 'Internal server error' });
-  }
 }
