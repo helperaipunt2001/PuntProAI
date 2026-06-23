@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PuntProAI — Punt Form Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0c10;color:#e8eaf0;font-family:'Inter',sans-serif;min-height:100vh}
+header{display:flex;align-items:center;gap:10px;padding:18px 28px;border-bottom:1px solid #1e2230;background:#0d0f14}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:#fff}
+.logo span{color:#4fd1c5}
+.badge{background:#1a2a28;color:#4fd1c5;font-size:10px;font-weight:700;letter-spacing:1px;padding:3px 8px;border-radius:4px}
+main{max-width:780px;margin:0 auto;padding:40px 20px 80px}
+.hero{text-align:center;margin-bottom:36px}
+.hero h1{font-family:'Bebas Neue',sans-serif;font-size:46px;letter-spacing:3px;color:#fff;margin-bottom:10px}
+.hero h1 span{color:#4fd1c5}
+.hero p{color:#8a90a0;font-size:14px;max-width:440px;margin:0 auto;line-height:1.6}
+
+/* Options Panel */
+.options-panel{background:#0d1018;border:1px solid #1e2230;border-radius:16px;padding:24px;margin-bottom:24px}
+.options-title{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#4fd1c5;margin-bottom:16px}
+.options-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:500px){.options-grid{grid-template-columns:1fr}}
+.option-group label{display:block;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#5a6880;margin-bottom:8px}
+.btn-group{display:flex;gap:6px;flex-wrap:wrap}
+.opt-btn{background:#1a1f2c;border:1px solid #2a3040;color:#8a90a0;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;transition:all 0.15s}
+.opt-btn:hover{border-color:#4fd1c5;color:#4fd1c5}
+.opt-btn.active{background:#1a2a28;border-color:#4fd1c5;color:#4fd1c5}
+.goal-group{grid-column:1/-1}
+.goal-group .btn-group{flex-wrap:wrap}
+
+/* Upload */
+.upload-zone{border:2px dashed #2a3040;border-radius:16px;padding:48px 24px;text-align:center;cursor:pointer;transition:all 0.2s;background:#0d1018;position:relative}
+.upload-zone:hover,.upload-zone.drag-over{border-color:#4fd1c5;background:#0d1a18}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-icon{width:56px;height:56px;background:#1a2a28;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:26px}
+.upload-zone h3{font-size:16px;font-weight:600;color:#e8eaf0;margin-bottom:6px}
+.upload-zone p{font-size:13px;color:#5a6070}
+.formats{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.fmt{background:#1a1f2c;color:#5a6880;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px}
+
+/* Preview */
+.video-preview{margin-top:20px;border-radius:14px;overflow:hidden;background:#0d1018;border:1px solid #1e2230}
+.video-preview video{width:100%;max-height:320px;display:block;object-fit:contain;background:#000}
+.video-info{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.video-name{font-size:13px;font-weight:500;color:#c0c8d8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.btn-analyze{background:#4fd1c5;color:#0a0c10;border:none;border-radius:10px;padding:12px 28px;font-size:14px;font-weight:700;font-family:'Inter',sans-serif;cursor:pointer;transition:all 0.2s;flex-shrink:0}
+.btn-analyze:hover{background:#38b2a8}
+.btn-analyze:disabled{background:#2a3a38;color:#4a5a58;cursor:not-allowed}
+
+/* Progress */
+.progress-wrap{margin-top:28px;background:#0d1018;border:1px solid #1e2230;border-radius:14px;padding:28px 24px;text-align:center}
+.progress-label{font-size:13px;color:#8a90a0;margin-bottom:16px;min-height:20px}
+.progress-track{background:#1a1f2c;border-radius:99px;height:6px;overflow:hidden;margin-bottom:12px}
+.progress-fill{height:100%;background:linear-gradient(90deg,#4fd1c5,#38b2a8);border-radius:99px;transition:width 0.4s ease;width:0%}
+.frames-row{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.frame-thumb{width:80px;height:56px;border-radius:8px;object-fit:cover;border:2px solid #1e2230;transition:border-color 0.2s}
+.frame-thumb.active{border-color:#4fd1c5}
+
+/* Results */
+.results{margin-top:28px}
+.results-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;gap:12px;flex-wrap:wrap}
+.results-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:#fff}
+.overall-score{display:flex;flex-direction:column;align-items:center;background:#0d1018;border:1px solid #4fd1c5;border-radius:14px;padding:16px 24px;min-width:110px}
+.score-number{font-family:'Bebas Neue',sans-serif;font-size:48px;line-height:1}
+.score-label{font-size:10px;font-weight:700;letter-spacing:1px;color:#5a8080;text-transform:uppercase}
+.summary-card{background:#0d1a18;border:1px solid #2a3a38;border-radius:14px;padding:22px;margin-bottom:14px}
+.summary-card h4{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#4fd1c5;margin-bottom:10px}
+.summary-card p{font-size:14px;color:#c0c8d8;line-height:1.7}
+.cat-card{background:#0d1018;border:1px solid #1e2230;border-radius:14px;padding:20px;margin-bottom:14px}
+.cat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cat-name{font-size:13px;font-weight:700;letter-spacing:0.5px;color:#c0c8d8;text-transform:uppercase}
+.cat-score{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px}
+.g{color:#4fd1c5}.y{color:#f6c90e}.r{color:#f87171}
+.bar-track{background:#1a1f2c;border-radius:99px;height:5px;margin-bottom:12px;overflow:hidden}
+.bar-fill{height:100%;border-radius:99px}
+.bg{background:#4fd1c5}.by{background:#f6c90e}.br{background:#f87171}
+.cat-feedback{font-size:13px;color:#8a90a0;line-height:1.65}
+.fix-card{background:#1a1208;border:1px solid #3a2a08;border-radius:14px;padding:22px;margin-bottom:14px}
+.fix-card h4{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#f6c90e;margin-bottom:10px}
+.fix-card p{font-size:14px;color:#c0c8d8;line-height:1.7}
+.tip-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+@media(max-width:500px){.tip-row{grid-template-columns:1fr}}
+.tip-card{background:#0d1018;border:1px solid #1e2230;border-radius:12px;padding:16px}
+.tip-card h4{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#8a90a0;margin-bottom:8px}
+.tip-card p{font-size:13px;color:#c0c8d8;line-height:1.6}
+.btn-reset{background:transparent;border:1px solid #2a3040;color:#8a90a0;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;margin-top:8px;transition:all 0.2s;width:100%}
+.btn-reset:hover{border-color:#4fd1c5;color:#4fd1c5}
+.error-box{background:#1a0d0d;border:1px solid #5a2020;border-radius:12px;padding:16px 20px;color:#f87171;font-size:13px;margin-top:20px;line-height:1.6}
+.hidden{display:none!important}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid #2a3a38;border-top-color:#4fd1c5;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+canvas{display:none}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">PUNT<span>PRO</span>AI</div>
+  <div class="badge">BETA</div>
+</header>
+<main>
+  <div class="hero">
+    <h1>ANALYZE YOUR<br><span>PUNT FORM</span></h1>
+    <p>Upload a video or photo. Our AI gives you a real breakdown in seconds.</p>
+  </div>
+
+  <!-- Options -->
+  <div class="options-panel">
+    <div class="options-title">Tell us about your punt</div>
+    <div class="options-grid">
+      <div class="option-group">
+        <label>Kicking Foot</label>
+        <div class="btn-group">
+          <button class="opt-btn active" data-group="foot" data-val="right">Right (Righty)</button>
+          <button class="opt-btn" data-group="foot" data-val="left">Left (Lefty)</button>
+        </div>
+      </div>
+      <div class="option-group">
+        <label>Punt Type</label>
+        <div class="btn-group">
+          <button class="opt-btn active" data-group="type" data-val="spiral">Spiral</button>
+          <button class="opt-btn" data-group="type" data-val="eoe">End Over End</button>
+        </div>
+      </div>
+      <div class="option-group">
+        <label>Intended Direction</label>
+        <div class="btn-group">
+          <button class="opt-btn" data-group="dir" data-val="left">Left</button>
+          <button class="opt-btn active" data-group="dir" data-val="straight">Straight</button>
+          <button class="opt-btn" data-group="dir" data-val="right">Right</button>
+        </div>
+      </div>
+      <div class="option-group">
+        <label>Primary Goal</label>
+        <div class="btn-group goal-group">
+          <button class="opt-btn active" data-group="goal" data-val="overall">Overall Form</button>
+          <button class="opt-btn" data-group="goal" data-val="hangtime">More Hangtime</button>
+          <button class="opt-btn" data-group="goal" data-val="distance">More Distance</button>
+          <button class="opt-btn" data-group="goal" data-val="contact">Better Contact</button>
+          <button class="opt-btn" data-group="goal" data-val="spiral_shape">Fix My Spiral</button>
+          <button class="opt-btn" data-group="goal" data-val="consistency">Consistency</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload -->
+  <div id="uploadSection">
+    <div class="upload-zone" id="dropZone">
+      <input type="file" id="fileInput" accept="video/*,image/*"/>
+      <div class="upload-icon">🏈</div>
+      <h3>Drop your punt video or photo here</h3>
+      <p>Or click to browse your files</p>
+      <div class="formats">
+        <span class="fmt">MP4</span><span class="fmt">MOV</span>
+        <span class="fmt">JPG</span><span class="fmt">PNG</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div id="previewSection" class="hidden">
+    <div class="video-preview">
+      <video id="videoEl" controls playsinline></video>
+      <div class="video-info">
+        <div class="video-name" id="videoName"></div>
+        <button class="btn-analyze" id="analyzeBtn" onclick="startAnalysis()">Analyze Punt</button>
+      </div>
+    </div>
+  </div>
+  <div id="imgPreviewSection" class="hidden" style="margin-top:20px">
+    <img id="imgPreviewEl" style="width:100%;border-radius:14px;border:1px solid #1e2230;max-height:340px;object-fit:contain;background:#000;display:block"/>
+    <div class="video-info" style="background:#0d1018;border:1px solid #1e2230;border-radius:0 0 14px 14px;margin-top:-1px">
+      <div class="video-name" id="imgName"></div>
+      <button class="btn-analyze" onclick="startImageAnalysis()">Analyze Punt</button>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div id="progressSection" class="hidden">
+    <div class="progress-wrap">
+      <div class="progress-label" id="progressLabel"><span class="spinner"></span>Starting...</div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="frames-row" id="framesRow"></div>
+    </div>
+  </div>
+
+  <div id="errorBox" class="error-box hidden"></div>
+  <div id="resultsSection" class="results hidden"></div>
+  <canvas id="canvas"></canvas>
+</main>
+
+<script>
+// State
+const opts = { foot: 'right', type: 'spiral', dir: 'straight', goal: 'overall' };
+let videoFile = null, isImage = false;
+
+// Option buttons
+document.querySelectorAll('.opt-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const g = btn.dataset.group;
+    document.querySelectorAll(`[data-group="${g}"]`).forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    opts[g] = btn.dataset.val;
+  });
+});
+
+// File input
+const fileInput = document.getElementById('fileInput');
+const dropZone  = document.getElementById('dropZone');
+fileInput.addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+
+function handleFile(file) {
+  videoFile = file;
+  isImage = file.type.startsWith('image/');
+  hide('uploadSection'); hide('progressSection'); hide('resultsSection'); hide('errorBox');
+
+  if (isImage) {
+    document.getElementById('imgPreviewEl').src = URL.createObjectURL(file);
+    document.getElementById('imgName').textContent = file.name;
+    show('imgPreviewSection'); hide('previewSection');
+  } else {
+    document.getElementById('videoEl').src = URL.createObjectURL(file);
+    document.getElementById('videoName').textContent = file.name;
+    show('previewSection'); hide('imgPreviewSection');
+  }
+}
+
+// Image analysis
+async function startImageAnalysis() {
+  hide('imgPreviewSection'); show('progressSection'); hide('errorBox');
+  setProgress(20, 'Reading your image...');
+  try {
+    const b64 = await fileToBase64(videoFile);
+    setProgress(50, 'Sending to AI coach...');
+    const result = await callAPI([{ type:'image', source:{ type:'base64', media_type: videoFile.type, data: b64 }}]);
+    setProgress(100, 'Done!');
+    await sleep(300);
+    hide('progressSection');
+    renderResults(result);
+  } catch(err) {
+    hide('progressSection'); show('imgPreviewSection');
+    showError(err.message);
+  }
+}
+
+// Video analysis
+async function startAnalysis() {
+  hide('previewSection'); show('progressSection'); hide('errorBox');
+  document.getElementById('framesRow').innerHTML = '';
+  setProgress(5, 'Extracting frames from video...');
+  const video = document.getElementById('videoEl');
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+
+  try {
+    const frames = await extractFrames(video, canvas, ctx, 5);
+    setProgress(45, 'Sending frames to AI coach...');
+    const imgContent = frames.map(b64 => ({ type:'image', source:{ type:'base64', media_type:'image/jpeg', data:b64 }}));
+    const result = await callAPI(imgContent);
+    setProgress(100, 'Done!');
+    await sleep(300);
+    hide('progressSection');
+    renderResults(result);
+  } catch(err) {
+    hide('progressSection'); show('previewSection');
+    showError(err.message);
+  }
+}
+
+async function extractFrames(video, canvas, ctx, count) {
+  return new Promise((resolve, reject) => {
+    const go = async () => {
+      const dur = video.duration;
+      if (!dur || isNaN(dur)) return reject(new Error('Could not read video duration. Try converting to MP4 and trimming to under 30 seconds.'));
+      const frames = [], positions = Array.from({length:count},(_,i)=>(0.05+(i/(count-1))*0.90)*dur);
+      for (let i=0; i<positions.length; i++) {
+        const b64 = await seekCapture(video, canvas, ctx, positions[i]);
+        frames.push(b64);
+        const img = document.createElement('img');
+        img.src = 'data:image/jpeg;base64,'+b64;
+        img.className = 'frame-thumb';
+        document.getElementById('framesRow').appendChild(img);
+        setTimeout(()=>img.classList.add('active'),50);
+        setProgress(10+Math.round((i+1)/count*32), `Extracting frame ${i+1} of ${count}...`);
+      }
+      resolve(frames);
+    };
+    video.readyState>=1 ? go() : video.addEventListener('loadedmetadata', go, {once:true});
+  });
+}
+
+function seekCapture(video, canvas, ctx, time) {
+  return new Promise((res,rej) => {
+    video.addEventListener('seeked', ()=>{
+      try {
+        canvas.width = video.videoWidth||640; canvas.height = video.videoHeight||360;
+        ctx.drawImage(video,0,0,canvas.width,canvas.height);
+        res(canvas.toDataURL('image/jpeg',0.75).split(',')[1]);
+      } catch(e){ rej(new Error('Frame capture failed — video may be DRM protected.')); }
+    },{once:true});
+    video.currentTime = time;
+  });
+}
+
+async function callAPI(imageContent) {
+  const dropClock = opts.foot === 'right' ? '11 o\'clock' : '1 o\'clock';
+  const puntDesc = `${opts.foot === 'left' ? 'LEFT-FOOTED' : 'RIGHT-FOOTED'} punter, ${opts.type === 'spiral' ? 'SPIRAL punt' : 'END-OVER-END punt'}, intended direction: ${opts.dir.toUpperCase()}, primary goal: ${opts.goal.replace('_',' ').toUpperCase()}`;
+
+  const systemPrompt = `You are PuntProAI — an elite punting analyst that gives detailed, expert-level technical feedback on punting form.
+
+CRITICAL HANDEDNESS RULE:
+- For a RIGHT-FOOTED punter: the correct drop position is 11 o'clock (ball slightly outside the kicking-side hip, angled inward)
+- For a LEFT-FOOTED punter: the correct drop position is 1 o'clock (mirror image — ball slightly outside the LEFT hip, angled inward)
+- ALWAYS analyze the drop relative to the correct clock position for that punter's kicking foot
+
+Core coaching principles:
+- THE DROP IS EVERYTHING: ${dropClock} position, no flipping, relaxed grip, consistent drop table height
+- APPROACH: Two-step, short controlled steps, jab step sets rhythm, NO overstriding
+- HIP DRIVE: Drive hips through the ball, never collapse underneath (collapsing = ball goes straight up)
+- CONTACT: Sweet spot of the foot, ankle LOCKED at contact, foot angle controls spiral rotation
+- FOLLOW-THROUGH: Leg finishes HIGH above head — "knee must hit you in the nose" — full extension, balanced landing
+- SPIRAL: Foot angle slightly inward at contact creates rotation. For directional spirals, drop angle + plant foot angle + hip direction must all point the same way
+- END OVER END: More upright drop, foot strikes more directly through the ball's center
+
+Never reference any specific named coach, coaching brand, or methodology by name in your response. Give the feedback as your own direct technical analysis.
+
+Be specific about what you actually see. Give real, actionable, expert-level coaching — not generic advice.
+
+Respond ONLY with valid JSON, no markdown:`;
+
+  const userText = `Punter info: ${puntDesc}. Correct drop clock position for this punter: ${dropClock}. Analyze the punting form shown and respond with this exact JSON:
+{
+  "overall_score": <0-100>,
+  "overall_grade": "<A+/A/A-/B+/B/B-/C+/C/D/F>",
+  "handedness_note": "<one sentence noting what you detected about their kicking foot and confirming the correct drop clock>",
+  "summary": "<2-3 sentence overall assessment in a direct, expert coaching voice>",
+  "categories": [
+    {"name":"The Drop","score":<0-10>,"feedback":"<specific feedback referencing the correct ${dropClock} target for this punter>"},
+    {"name":"Approach & Steps","score":<0-10>,"feedback":"<specific feedback>"},
+    {"name":"Hip Drive","score":<0-10>,"feedback":"<specific feedback>"},
+    {"name":"Contact Point","score":<0-10>,"feedback":"<specific feedback>"},
+    {"name":"Follow-Through","score":<0-10>,"feedback":"<specific feedback>"},
+    {"name":"${opts.type === 'spiral' ? 'Spiral Shape' : 'Ball Rotation'}","score":<0-10>,"feedback":"<specific feedback on the ${opts.type} execution>"},
+    {"name":"Directional Execution","score":<0-10>,"feedback":"<specific feedback on hitting the ${opts.dir} target>"}
+  ],
+  "goal_feedback": "<specific, detailed advice targeting their stated goal: ${opts.goal.replace('_',' ')}>",
+  "top_fix": "<the single most important thing to fix — give a specific drill or cue>",
+  "hangtime_tip": "<one specific tip to increase hangtime>",
+  "distance_tip": "<one specific tip to increase distance>"
+}`;
+
+  const response = await fetch('/api/analyze', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      imageContent,
+      systemPrompt,
+      userText
+    })
+  });
+
+  if (!response.ok) {
+    const e = await response.json().catch(()=>({}));
+    const debugMsg = e.debug ? ` (AI said: "${e.debug.slice(0,150)}...")` : '';
+    throw new Error((e.error || `Server error ${response.status}`) + debugMsg);
+  }
+  const data = await response.json();
+  return data;
+}
+
+function renderResults(d) {
+  const sc = n => n >= 75 ? 'g' : n >= 50 ? 'y' : 'r';
+  const bc = n => n >= 75 ? 'bg' : n >= 50 ? 'by' : 'br';
+  const catsHTML = d.categories.map(c => {
+    const pct = (c.score/10)*100;
+    return `<div class="cat-card">
+      <div class="cat-top">
+        <div class="cat-name">${c.name}</div>
+        <div class="cat-score ${sc(c.score*10)}">${c.score}<span style="font-size:13px;color:#4a5a60">/10</span></div>
+      </div>
+      <div class="bar-track"><div class="bar-fill ${bc(c.score*10)}" style="width:${pct}%"></div></div>
+      <div class="cat-feedback">${c.feedback}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('resultsSection').innerHTML = `
+    <div class="results-header">
+      <div class="results-title">YOUR ANALYSIS</div>
+      <div class="overall-score">
+        <div class="score-number ${sc(d.overall_score)}">${d.overall_score}</div>
+        <div class="score-label">Score / Grade: ${d.overall_grade}</div>
+      </div>
+    </div>
+    ${d.handedness_note ? `<div class="summary-card" style="background:#0d1018;border-color:#2a3040"><h4>Detected</h4><p>${d.handedness_note}</p></div>` : ''}
+    <div class="summary-card"><h4>Coach's Take</h4><p>${d.summary}</p></div>
+    ${d.goal_feedback ? `<div class="summary-card" style="border-color:#3a3020;background:#1a1a08"><h4 style="color:#f6c90e">🎯 Goal: ${opts.goal.replace('_',' ')}</h4><p>${d.goal_feedback}</p></div>` : ''}
+    ${catsHTML}
+    <div class="fix-card"><h4>🔧 #1 Thing To Fix</h4><p>${d.top_fix}</p></div>
+    <div class="tip-row">
+      <div class="tip-card"><h4>⬆️ Hangtime Tip</h4><p>${d.hangtime_tip}</p></div>
+      <div class="tip-card"><h4>📏 Distance Tip</h4><p>${d.distance_tip}</p></div>
+    </div>
+    <button class="btn-reset" onclick="resetApp()">← Analyze Another Punt</button>
+  `;
+  show('resultsSection');
+}
+
+function resetApp() {
+  videoFile=null; isImage=false;
+  document.getElementById('videoEl').src='';
+  document.getElementById('fileInput').value='';
+  document.getElementById('framesRow').innerHTML='';
+  document.getElementById('progressFill').style.width='0%';
+  show('uploadSection');
+  ['previewSection','imgPreviewSection','progressSection','resultsSection','errorBox'].forEach(hide);
+}
+
+// Helpers
+const show = id => document.getElementById(id).classList.remove('hidden');
+const hide = id => document.getElementById(id).classList.add('hidden');
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+const setProgress = (pct,label) => {
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressLabel').innerHTML = pct<100?`<span class="spinner"></span>${label}`:label;
+};
+const showError = msg => {
+  document.getElementById('errorBox').textContent='⚠️ '+msg;
+  show('errorBox');
+};
+function fileToBase64(file) {
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result.split(',')[1]);
+    r.onerror=()=>rej(new Error('Failed to read file'));
+    r.readAsDataURL(file);
+  });
+}
+</script>
+</body>
+</html>
