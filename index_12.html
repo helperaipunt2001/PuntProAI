@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PuntProAI — Punt Form Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1635988162/pose.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0c10;color:#e8eaf0;font-family:'Inter',sans-serif;min-height:100vh}
+header{display:flex;align-items:center;gap:10px;padding:18px 28px;border-bottom:1px solid #1e2230;background:#0d0f14}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:#fff}
+.logo span{color:#4fd1c5}
+.badge{background:#1a2a28;color:#4fd1c5;font-size:10px;font-weight:700;letter-spacing:1px;padding:3px 8px;border-radius:4px}
+main{max-width:780px;margin:0 auto;padding:40px 20px 80px}
+.hero{text-align:center;margin-bottom:36px}
+.hero h1{font-family:'Bebas Neue',sans-serif;font-size:46px;letter-spacing:3px;color:#fff;margin-bottom:10px}
+.hero h1 span{color:#4fd1c5}
+.hero p{color:#8a90a0;font-size:14px;max-width:440px;margin:0 auto;line-height:1.6}
+
+/* Options Panel */
+.options-panel{background:#0d1018;border:1px solid #1e2230;border-radius:16px;padding:24px;margin-bottom:24px}
+.options-title{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#4fd1c5;margin-bottom:16px}
+.options-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:500px){.options-grid{grid-template-columns:1fr}}
+.option-group label{display:block;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#5a6880;margin-bottom:8px}
+.btn-group{display:flex;gap:6px;flex-wrap:wrap}
+.opt-btn{background:#1a1f2c;border:1px solid #2a3040;color:#8a90a0;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;transition:all 0.15s}
+.opt-btn:hover{border-color:#4fd1c5;color:#4fd1c5}
+.opt-btn.active{background:#1a2a28;border-color:#4fd1c5;color:#4fd1c5}
+.goal-group{grid-column:1/-1}
+.goal-group .btn-group{flex-wrap:wrap}
+
+/* Upload */
+.upload-zone{border:2px dashed #2a3040;border-radius:16px;padding:48px 24px;text-align:center;cursor:pointer;transition:all 0.2s;background:#0d1018;position:relative}
+.upload-zone:hover,.upload-zone.drag-over{border-color:#4fd1c5;background:#0d1a18}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-icon{width:56px;height:56px;background:#1a2a28;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:26px}
+.upload-zone h3{font-size:16px;font-weight:600;color:#e8eaf0;margin-bottom:6px}
+.upload-zone p{font-size:13px;color:#5a6070}
+.formats{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.fmt{background:#1a1f2c;color:#5a6880;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px}
+
+/* Preview */
+.video-preview{margin-top:20px;border-radius:14px;overflow:hidden;background:#0d1018;border:1px solid #1e2230}
+.video-preview video{width:100%;max-height:320px;display:block;object-fit:contain;background:#000}
+.video-info{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.video-name{font-size:13px;font-weight:500;color:#c0c8d8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.btn-analyze{background:#4fd1c5;color:#0a0c10;border:none;border-radius:10px;padding:12px 28px;font-size:14px;font-weight:700;font-family:'Inter',sans-serif;cursor:pointer;transition:all 0.2s;flex-shrink:0}
+.btn-analyze:hover{background:#38b2a8}
+.btn-analyze:disabled{background:#2a3a38;color:#4a5a58;cursor:not-allowed}
+
+/* Progress */
+.progress-wrap{margin-top:28px;background:#0d1018;border:1px solid #1e2230;border-radius:14px;padding:28px 24px;text-align:center}
+.progress-label{font-size:13px;color:#8a90a0;margin-bottom:16px;min-height:20px}
+.progress-track{background:#1a1f2c;border-radius:99px;height:6px;overflow:hidden;margin-bottom:12px}
+.progress-fill{height:100%;background:linear-gradient(90deg,#4fd1c5,#38b2a8);border-radius:99px;transition:width 0.4s ease;width:0%}
+.frames-row{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.frame-thumb{width:80px;height:56px;border-radius:8px;object-fit:cover;border:2px solid #1e2230;transition:border-color 0.2s}
+.frame-thumb.active{border-color:#4fd1c5}
+
+/* Results */
+.results{margin-top:28px}
+.results-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;gap:12px;flex-wrap:wrap}
+.results-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:#fff}
+.overall-score{display:flex;flex-direction:column;align-items:center;background:#0d1018;border:1px solid #4fd1c5;border-radius:14px;padding:16px 24px;min-width:110px}
+.score-number{font-family:'Bebas Neue',sans-serif;font-size:48px;line-height:1}
+.score-label{font-size:10px;font-weight:700;letter-spacing:1px;color:#5a8080;text-transform:uppercase}
+.summary-card{background:#0d1a18;border:1px solid #2a3a38;border-radius:14px;padding:22px;margin-bottom:14px}
+.summary-card h4{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#4fd1c5;margin-bottom:10px}
+.summary-card p{font-size:14px;color:#c0c8d8;line-height:1.7}
+.cat-card{background:#0d1018;border:1px solid #1e2230;border-radius:14px;padding:20px;margin-bottom:14px}
+.cat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cat-name{font-size:13px;font-weight:700;letter-spacing:0.5px;color:#c0c8d8;text-transform:uppercase}
+.cat-score{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px}
+.g{color:#4fd1c5}.y{color:#f6c90e}.r{color:#f87171}
+.bar-track{background:#1a1f2c;border-radius:99px;height:5px;margin-bottom:12px;overflow:hidden}
+.bar-fill{height:100%;border-radius:99px}
+.bg{background:#4fd1c5}.by{background:#f6c90e}.br{background:#f87171}
+.cat-feedback{font-size:13px;color:#8a90a0;line-height:1.65}
+.fix-card{background:#1a1208;border:1px solid #3a2a08;border-radius:14px;padding:22px;margin-bottom:14px}
+.fix-card h4{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#f6c90e;margin-bottom:10px}
+.fix-card p{font-size:14px;color:#c0c8d8;line-height:1.7}
+.tip-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+@media(max-width:500px){.tip-row{grid-template-columns:1fr}}
+.tip-card{background:#0d1018;border:1px solid #1e2230;border-radius:12px;padding:16px}
+.tip-card h4{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#8a90a0;margin-bottom:8px}
+.tip-card p{font-size:13px;color:#c0c8d8;line-height:1.6}
+.btn-reset{background:transparent;border:1px solid #2a3040;color:#8a90a0;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;margin-top:8px;transition:all 0.2s;width:100%}
+.btn-reset:hover{border-color:#4fd1c5;color:#4fd1c5}
+.error-box{background:#1a0d0d;border:1px solid #5a2020;border-radius:12px;padding:16px 20px;color:#f87171;font-size:13px;margin-top:20px;line-height:1.6}
+.hidden{display:none!important}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid #2a3a38;border-top-color:#4fd1c5;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+canvas{display:none}
+
+/* Pose Overlay Player */
+.pose-player-wrap{margin-top:28px;background:#0d1018;border:1px solid #1e2230;border-radius:16px;overflow:hidden}
+.pose-player-header{padding:16px 20px;border-bottom:1px solid #1e2230;display:flex;align-items:center;justify-content:space-between}
+.pose-player-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.5px;color:#fff}
+.pose-status{font-size:11px;color:#5a8080;font-weight:600;letter-spacing:0.5px}
+.pose-stage{position:relative;background:#000;display:flex;justify-content:center}
+.pose-stage video{display:none}
+.pose-stage canvas.pose-canvas{display:block;max-width:100%;max-height:480px}
+.pose-caption{position:absolute;background:rgba(13,16,24,0.92);border:1px solid #4fd1c5;border-radius:12px;padding:8px 13px;font-size:12px;font-weight:600;color:#e8eaf0;display:flex;align-items:flex-start;gap:7px;backdrop-filter:blur(4px);line-height:1.35;transition:left 0.15s ease, top 0.15s ease}
+.pose-caption-dot{width:8px;height:8px;border-radius:50%;background:#4fd1c5;flex-shrink:0;margin-top:5px}
+.pose-controls{padding:16px 20px;display:flex;align-items:center;gap:14px}
+.pose-play-btn{width:38px;height:38px;border-radius:50%;background:#4fd1c5;border:none;color:#0a0c10;font-size:14px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.2s}
+.pose-play-btn:hover{background:#38b2a8}
+.pose-scrub{flex:1;-webkit-appearance:none;appearance:none;height:5px;border-radius:99px;background:#1a1f2c;cursor:pointer;outline:none}
+.pose-scrub::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#4fd1c5;cursor:pointer;box-shadow:0 0 0 3px rgba(79,209,197,0.2)}
+.pose-scrub::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#4fd1c5;cursor:pointer;border:none}
+.pose-speed-group{display:flex;gap:6px;flex-shrink:0}
+.pose-speed-btn{background:#1a1f2c;border:1px solid #2a3040;color:#8a90a0;border-radius:6px;padding:5px 9px;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s}
+.pose-speed-btn.active{background:#1a2a28;border-color:#4fd1c5;color:#4fd1c5}
+.pose-legend{padding:0 20px 16px;display:flex;gap:16px;flex-wrap:wrap}
+.pose-legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:#5a6880}
+.pose-legend-dot{width:8px;height:8px;border-radius:50%}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">PUNT<span>PRO</span>AI</div>
+  <div class="badge">BETA</div>
+</header>
+<main>
+  <div class="hero">
+    <h1>ANALYZE YOUR<br><span>PUNT FORM</span></h1>
+    <p>Upload a video or photo. Our AI gives you a real breakdown in seconds.</p>
+  </div>
+
+  <!-- Options -->
+  <div class="options-panel">
+    <div class="options-title">Tell us about your punt</div>
+    <div class="options-grid">
+      <div class="option-group">
+        <label>Kicking Foot</label>
+        <div class="btn-group">
+          <button class="opt-btn active" data-group="foot" data-val="right">Right (Righty)</button>
+          <button class="opt-btn" data-group="foot" data-val="left">Left (Lefty)</button>
+        </div>
+      </div>
+      <div class="option-group">
+        <label>Punt Type</label>
+        <div class="btn-group">
+          <button class="opt-btn active" data-group="type" data-val="spiral">Spiral</button>
+          <button class="opt-btn" data-group="type" data-val="eoe">End Over End</button>
+        </div>
+      </div>
+      <div class="option-group">
+        <label>Intended Direction</label>
+        <div class="btn-group">
+          <button class="opt-btn" data-group="dir" data-val="left">Left</button>
+          <button class="opt-btn active" data-group="dir" data-val="straight">Straight</button>
+          <button class="opt-btn" data-group="dir" data-val="right">Right</button>
+        </div>
+      </div>
+      <div class="option-group">
+        <label>Level</label>
+        <div class="btn-group">
+          <button class="opt-btn" data-group="level" data-val="youth">Youth (under 14)</button>
+          <button class="opt-btn active" data-group="level" data-val="highschool">High School</button>
+          <button class="opt-btn" data-group="level" data-val="college">College</button>
+          <button class="opt-btn" data-group="level" data-val="pro">Pro</button>
+        </div>
+      </div>
+      <div class="option-group">
+        <label>Primary Goal</label>
+        <div class="btn-group goal-group">
+          <button class="opt-btn active" data-group="goal" data-val="overall">Overall Form</button>
+          <button class="opt-btn" data-group="goal" data-val="hangtime">More Hangtime</button>
+          <button class="opt-btn" data-group="goal" data-val="distance">More Distance</button>
+          <button class="opt-btn" data-group="goal" data-val="contact">Better Contact</button>
+          <button class="opt-btn" data-group="goal" data-val="spiral_shape">Fix My Spiral</button>
+          <button class="opt-btn" data-group="goal" data-val="consistency">Consistency</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload -->
+  <div id="uploadSection">
+    <div class="upload-zone" id="dropZone">
+      <input type="file" id="fileInput" accept="video/*,image/*"/>
+      <div class="upload-icon">🏈</div>
+      <h3>Drop your punt video or photo here</h3>
+      <p>Or click to browse your files</p>
+      <div class="formats">
+        <span class="fmt">MP4</span><span class="fmt">MOV</span>
+        <span class="fmt">JPG</span><span class="fmt">PNG</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div id="previewSection" class="hidden">
+    <div class="video-preview">
+      <video id="videoEl" controls playsinline></video>
+      <div class="video-info">
+        <div class="video-name" id="videoName"></div>
+        <button class="btn-analyze" id="analyzeBtn" onclick="startAnalysis()">Analyze Punt</button>
+      </div>
+    </div>
+  </div>
+  <div id="imgPreviewSection" class="hidden" style="margin-top:20px">
+    <img id="imgPreviewEl" style="width:100%;border-radius:14px;border:1px solid #1e2230;max-height:340px;object-fit:contain;background:#000;display:block"/>
+    <div class="video-info" style="background:#0d1018;border:1px solid #1e2230;border-radius:0 0 14px 14px;margin-top:-1px">
+      <div class="video-name" id="imgName"></div>
+      <button class="btn-analyze" onclick="startImageAnalysis()">Analyze Punt</button>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div id="progressSection" class="hidden">
+    <div class="progress-wrap">
+      <div class="progress-label" id="progressLabel"><span class="spinner"></span>Starting...</div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="frames-row" id="framesRow"></div>
+    </div>
+  </div>
+
+  <div id="errorBox" class="error-box hidden"></div>
+
+  <!-- Pose Overlay Player -->
+  <div id="posePlayerSection" class="pose-player-wrap hidden">
+    <div class="pose-player-header">
+      <div class="pose-player-title">FORM BREAKDOWN</div>
+      <div class="pose-status" id="poseStatus">Analyzing motion...</div>
+    </div>
+    <div class="pose-stage">
+      <video id="poseVideoEl" playsinline muted></video>
+      <canvas id="poseCanvas" class="pose-canvas"></canvas>
+      <div class="pose-caption hidden" id="poseCaption">
+        <span class="pose-caption-dot"></span>
+        <span id="poseCaptionText"></span>
+      </div>
+    </div>
+    <div class="pose-controls">
+      <button class="pose-play-btn" id="posePlayBtn" onclick="togglePosePlay()">▶</button>
+      <input type="range" class="pose-scrub" id="poseScrub" min="0" max="100" value="0" step="0.1"/>
+      <div class="pose-speed-group">
+        <button class="pose-speed-btn" data-speed="0.25" onclick="setPoseSpeed(0.25, this)">0.25x</button>
+        <button class="pose-speed-btn" data-speed="0.5" onclick="setPoseSpeed(0.5, this)">0.5x</button>
+        <button class="pose-speed-btn active" data-speed="1" onclick="setPoseSpeed(1, this)">1x</button>
+      </div>
+    </div>
+    <div class="pose-legend">
+      <div class="pose-legend-item"><span class="pose-legend-dot" style="background:#4fd1c5"></span>Joint tracking</div>
+      <div class="pose-legend-item"><span class="pose-legend-dot" style="background:#4ade80"></span>Good (7-10)</div>
+      <div class="pose-legend-item"><span class="pose-legend-dot" style="background:#f6c90e"></span>Okay (4-6)</div>
+      <div class="pose-legend-item"><span class="pose-legend-dot" style="background:#f87171"></span>Needs work (0-3)</div>
+    </div>
+  </div>
+
+  <div id="resultsSection" class="results hidden"></div>
+  <canvas id="canvas"></canvas>
+</main>
+
+<script>
+// State
+const opts = { foot: 'right', type: 'spiral', dir: 'straight', goal: 'overall', level: 'highschool' };
+let videoFile = null, isImage = false;
+
+// Option buttons
+document.querySelectorAll('.opt-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const g = btn.dataset.group;
+    document.querySelectorAll(`[data-group="${g}"]`).forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    opts[g] = btn.dataset.val;
+  });
+});
+
+// File input
+const fileInput = document.getElementById('fileInput');
+const dropZone  = document.getElementById('dropZone');
+fileInput.addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+
+function handleFile(file) {
+  videoFile = file;
+  isImage = file.type.startsWith('image/');
+  hide('uploadSection'); hide('progressSection'); hide('resultsSection'); hide('errorBox'); hide('posePlayerSection');
+  stopPosePlayback();
+
+  if (isImage) {
+    document.getElementById('imgPreviewEl').src = URL.createObjectURL(file);
+    document.getElementById('imgName').textContent = file.name;
+    show('imgPreviewSection'); hide('previewSection');
+  } else {
+    document.getElementById('videoEl').src = URL.createObjectURL(file);
+    document.getElementById('videoName').textContent = file.name;
+    show('previewSection'); hide('imgPreviewSection');
+  }
+}
+
+// Image analysis
+async function startImageAnalysis() {
+  hide('imgPreviewSection'); show('progressSection'); hide('errorBox');
+  setProgress(20, 'Reading your image...');
+  try {
+    const b64 = await fileToBase64(videoFile);
+    setProgress(50, 'Sending to AI coach...');
+    const result = await callAPI([{ type:'image', source:{ type:'base64', media_type: videoFile.type, data: b64 }}]);
+    setProgress(100, 'Done!');
+    await sleep(300);
+    hide('progressSection');
+    renderResults(result);
+  } catch(err) {
+    hide('progressSection'); show('imgPreviewSection');
+    showError(err.message);
+  }
+}
+
+// Video analysis
+async function startAnalysis() {
+  hide('previewSection'); show('progressSection'); hide('errorBox');
+  document.getElementById('framesRow').innerHTML = '';
+  setProgress(5, 'Extracting frames from video...');
+  const video = document.getElementById('videoEl');
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+
+  try {
+    const frames = await extractFrames(video, canvas, ctx, 10);
+    setProgress(40, 'Sending frames to AI coach...');
+    const imgContent = frames.map(b64 => ({ type:'image', source:{ type:'base64', media_type:'image/jpeg', data:b64 }}));
+    const result = await callAPI(imgContent);
+    setProgress(70, 'Tracking your form...');
+    await setupPosePlayer(videoFile, result);
+    setProgress(100, 'Done!');
+    await sleep(300);
+    hide('progressSection');
+    renderResults(result);
+  } catch(err) {
+    hide('progressSection'); show('previewSection');
+    showError(err.message);
+  }
+}
+
+async function extractFrames(video, canvas, ctx, count) {
+  return new Promise((resolve, reject) => {
+    const go = async () => {
+      const dur = video.duration;
+      if (!dur || isNaN(dur)) return reject(new Error('Could not read video duration. Try converting to MP4 and trimming to under 30 seconds.'));
+
+      // Punts almost always happen in the back ~65% of an uploaded clip (catch, drop,
+      // approach, contact, follow-through) — the first chunk is usually just setup/standing.
+      // We sample non-uniformly: lightly across the early clip, then densely through the
+      // action window, so we don't miss the actual kick.
+      const actionStart = dur * 0.30;
+      const actionEnd = dur * 0.97;
+      const setupFrames = Math.max(1, Math.round(count * 0.2));   // ~20% of frames: setup/approach
+      const actionFrames = count - setupFrames;                    // ~80% of frames: the actual kick
+
+      const positions = [];
+      for (let i = 0; i < setupFrames; i++) {
+        positions.push((i / setupFrames) * actionStart);
+      }
+      for (let i = 0; i < actionFrames; i++) {
+        positions.push(actionStart + (i / (actionFrames - 1)) * (actionEnd - actionStart));
+      }
+      positions.sort((a,b) => a - b);
+
+      const frames = [];
+      for (let i=0; i<positions.length; i++) {
+        const b64 = await seekCapture(video, canvas, ctx, positions[i]);
+        frames.push(b64);
+        const img = document.createElement('img');
+        img.src = 'data:image/jpeg;base64,'+b64;
+        img.className = 'frame-thumb';
+        document.getElementById('framesRow').appendChild(img);
+        setTimeout(()=>img.classList.add('active'),50);
+        setProgress(10+Math.round((i+1)/count*32), `Extracting frame ${i+1} of ${count}...`);
+      }
+      resolve(frames);
+    };
+    video.readyState>=1 ? go() : video.addEventListener('loadedmetadata', go, {once:true});
+  });
+}
+
+function seekCapture(video, canvas, ctx, time) {
+  return new Promise((res,rej) => {
+    video.addEventListener('seeked', ()=>{
+      try {
+        canvas.width = video.videoWidth||640; canvas.height = video.videoHeight||360;
+        ctx.drawImage(video,0,0,canvas.width,canvas.height);
+        res(canvas.toDataURL('image/jpeg',0.75).split(',')[1]);
+      } catch(e){ rej(new Error('Frame capture failed — video may be DRM protected.')); }
+    },{once:true});
+    video.currentTime = time;
+  });
+}
+
+async function callAPI(imageContent) {
+  const dropClock = opts.foot === 'right' ? '11 o\'clock' : '1 o\'clock';
+  const levelLabels = { youth: 'YOUTH (under 14)', highschool: 'HIGH SCHOOL', college: 'COLLEGE', pro: 'PROFESSIONAL/NFL' };
+  const levelBenchmarks = {
+    youth: 'Realistic GOOD benchmarks for this age: hang time 2.8-3.5s is solid, 3.5s+ is excellent. Distance 30-40 yards is solid, 40+ is excellent. Do not compare to college or pro distances.',
+    highschool: 'Realistic GOOD benchmarks for this level: hang time 3.5-4.0s is solid, 4.0s+ is excellent. Distance 38-45 yards is solid, 45+ is excellent.',
+    college: 'Realistic GOOD benchmarks for this level: hang time 4.0-4.4s is solid, 4.4s+ is excellent. Distance 42-48 yards is solid, 48+ is excellent.',
+    pro: 'Realistic GOOD benchmarks for this level: hang time 4.3-4.6s is solid, 4.6s+ is elite/Pro Bowl caliber. Distance 45-50 yards is solid, 50+ is elite.'
+  };
+  const puntDesc = `${opts.foot === 'left' ? 'LEFT-FOOTED' : 'RIGHT-FOOTED'} punter, ${opts.type === 'spiral' ? 'SPIRAL punt' : 'END-OVER-END punt'}, intended direction: ${opts.dir.toUpperCase()}, primary goal: ${opts.goal.replace('_',' ').toUpperCase()}, player level: ${levelLabels[opts.level]}`;
+
+  const systemPrompt = `You are PuntProAI — an elite punting analyst that gives detailed, expert-level technical feedback on punting form.
+
+CRITICAL HANDEDNESS RULE:
+- For a RIGHT-FOOTED punter: the correct drop position is 11 o'clock (ball slightly outside the kicking-side hip, angled inward)
+- For a LEFT-FOOTED punter: the correct drop position is 1 o'clock (mirror image — ball slightly outside the LEFT hip, angled inward)
+- ALWAYS analyze the drop relative to the correct clock position for that punter's kicking foot
+
+Core coaching principles:
+- THE DROP IS EVERYTHING: ${dropClock} position, no flipping, relaxed grip, consistent drop table height
+- APPROACH: Two-step, short controlled steps, jab step sets rhythm, NO overstriding
+- HIP DRIVE: Drive hips through the ball, never collapse underneath (collapsing = ball goes straight up)
+- CONTACT: Sweet spot of the foot, ankle LOCKED at contact, foot angle controls spiral rotation
+- FOLLOW-THROUGH: Leg finishes HIGH above head — "knee must hit you in the nose" — full extension, balanced landing
+- SPIRAL: Foot angle slightly inward at contact creates rotation. For directional spirals, drop angle + plant foot angle + hip direction must all point the same way
+- END OVER END: More upright drop, foot strikes more directly through the ball's center
+
+Never reference any specific named coach, coaching brand, or methodology by name in your response. Give the feedback as your own direct technical analysis.
+
+SCORING RUBRIC — anchor every score to this scale, don't default to a cautious middle score:
+- 9-10: Elite/college-level execution. Clean mechanics, no meaningful flaw in this category. This is what a D1 punter's best reps look like — score it like one when you see it.
+- 7-8: Solid, repeatable technique with one minor, specific issue that doesn't significantly hurt outcome.
+- 5-6: Inconsistent or has a clear technical flaw that's actively costing distance, accuracy, or hang time.
+- 3-4: Significant flaw that fundamentally limits the kick.
+- 0-2: Fundamentally broken mechanics in this category.
+
+CRITICAL — TWO DIFFERENT STANDARDS FOR TWO DIFFERENT THINGS:
+
+1. TECHNIQUE categories (The Drop, Approach & Steps, Hip Drive, Contact Point, Follow-Through, Spiral Shape/Ball Rotation, Directional Execution) are graded on PURE MECHANICS — this standard does NOT change with age or level. A clean drop, locked ankle, full leg extension, and correct directional alignment is "good technique" whether the punter is 12 or 32. Grade what the body is actually doing, not how far the ball ends up going. A young punter with textbook-clean mechanics deserves the same high technique scores as an older punter with the same clean mechanics.
+
+2. PHYSICAL OUTPUT (anything related to hang time, distance, or raw power) must be judged RELATIVE TO THE PUNTER'S STATED LEVEL, never against an absolute pro/college standard. ${levelBenchmarks[opts.level] || levelBenchmarks.highschool} A youth or high school punter hitting a great ball FOR THEIR LEVEL should score just as high on output as a pro hitting a great ball for the pro level — you are grading "how good is this for someone at this stage," not "how does this compare to the NFL." Never penalize a young punter's score because their hang time or distance is naturally lower than an adult's — that's expected and not a flaw.
+
+OUTCOME-FIRST RULE — this overrides micro-nitpicking: the ball's actual flight (height, distance covered in frame, spiral tightness, trajectory straightness) is the strongest evidence of whether the mechanics worked. If the ball flight you can see is clearly excellent for this punter's level, that means the drop, hip drive, contact, and follow-through were ALL good enough to produce that result — score those categories accordingly (8-10), even if you can't perfectly verify each joint angle in a still frame. Do not deduct points from a category for a flaw you are inferring or guessing at rather than one you can clearly see. A small, ambiguous detail (e.g. "the foot angle might be slightly off") is not grounds for a 5 or 6 when the actual kick outcome was clean — outcome evidence beats speculative mechanical critique every time.
+
+Calibrate technique scoring as if you might be looking at an NFL or D1 punter's game film: if you would hesitate to tell that level of athlete "this specific thing is wrong" with confidence, don't lower the score for it. Reserve scores below 7 for flaws you can point to and describe in one specific, concrete sentence. If you cannot do that for a category, it scores 8 or above. This app is used by youth, high school, and college punters who are still learning — be honest and specific in your critique, but never crush a young punter's confidence with a needlessly harsh score on a rep that was genuinely good for their level.
+
+Be specific about what you actually see. Give real, actionable, expert-level coaching — not generic advice.
+
+Respond ONLY with valid JSON, no markdown:`;
+
+  const userText = `Punter info: ${puntDesc}. Correct drop clock position for this punter: ${dropClock}.
+
+These images are sequential frames from one punt video, in chronological order. The first 1-2 frames may show the punter standing, setting up, or starting their approach — treat those only as context. The remaining frames are concentrated around the actual punting action: catch, drop, approach, contact, and follow-through. Focus your analysis on what these later frames actually show about technique and ball flight.
+
+If the ball is visible in flight in any frame, judge its trajectory, height, and spiral/rotation directly relative to this punter's stated level (${levelLabels[opts.level]}) — a clean, tight, well-controlled flight that's excellent FOR THIS LEVEL is direct proof the mechanics worked, and every relevant category should reflect that with a high score (8-10), even if you can't independently verify every joint angle. Do not default to a generic mid-range score, and do not deduct points for speculative or ambiguous flaws you're inferring rather than clearly seeing. A genuinely good rep for this punter's level — especially one with clean ball flight — should score 8-10 across most categories. A genuinely flawed rep should score low only on the specific categories where you can describe the exact flaw. Don't flatten everything toward the middle, and don't let caution override what the ball flight is telling you.
+
+Analyze the punting form shown and respond with this exact JSON:
+{
+  "overall_score": <0-100>,
+  "overall_grade": "<A+/A/A-/B+/B/B-/C+/C/D/F>",
+  "handedness_note": "<one sentence noting what you detected about their kicking foot and confirming the correct drop clock>",
+  "summary": "<2-3 sentence overall assessment in a direct, expert coaching voice>",
+  "categories": [
+    {"name":"The Drop","score":<0-10>,"feedback":"<specific feedback referencing the correct ${dropClock} target for this punter>","tip":"<under 8 words, punchy, social-media-caption style, e.g. 'Drop angle pulling it right'>"},
+    {"name":"Approach & Steps","score":<0-10>,"feedback":"<specific feedback>","tip":"<under 8 words, punchy caption style>"},
+    {"name":"Hip Drive","score":<0-10>,"feedback":"<specific feedback>","tip":"<under 8 words, punchy caption style>"},
+    {"name":"Contact Point","score":<0-10>,"feedback":"<specific feedback>","tip":"<under 8 words, punchy caption style>"},
+    {"name":"Follow-Through","score":<0-10>,"feedback":"<specific feedback>","tip":"<under 8 words, punchy caption style>"},
+    {"name":"${opts.type === 'spiral' ? 'Spiral Shape' : 'Ball Rotation'}","score":<0-10>,"feedback":"<specific feedback on the ${opts.type} execution>","tip":"<under 8 words, punchy caption style>"},
+    {"name":"Directional Execution","score":<0-10>,"feedback":"<specific feedback on hitting the ${opts.dir} target>","tip":"<under 8 words, punchy caption style>"}
+  ],
+  "goal_feedback": "<specific, detailed advice targeting their stated goal: ${opts.goal.replace('_',' ')}>",
+  "top_fix": "<the single most important thing to fix — give a specific drill or cue>",
+  "hangtime_tip": "<one specific tip to increase hangtime>",
+  "distance_tip": "<one specific tip to increase distance>"
+}`;
+
+  const response = await fetch('/api/analyze', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      imageContent,
+      systemPrompt,
+      userText
+    })
+  });
+
+  if (!response.ok) {
+    const e = await response.json().catch(()=>({}));
+    const debugMsg = e.debug ? ` (AI said: "${e.debug.slice(0,150)}...")` : '';
+    throw new Error((e.error || `Server error ${response.status}`) + debugMsg);
+  }
+  const data = await response.json();
+  return data;
+}
+
+function renderResults(d) {
+  const sc = n => n >= 75 ? 'g' : n >= 50 ? 'y' : 'r';
+  const bc = n => n >= 75 ? 'bg' : n >= 50 ? 'by' : 'br';
+  const catsHTML = d.categories.map(c => {
+    const pct = (c.score/10)*100;
+    return `<div class="cat-card">
+      <div class="cat-top">
+        <div class="cat-name">${c.name}</div>
+        <div class="cat-score ${sc(c.score*10)}">${c.score}<span style="font-size:13px;color:#4a5a60">/10</span></div>
+      </div>
+      <div class="bar-track"><div class="bar-fill ${bc(c.score*10)}" style="width:${pct}%"></div></div>
+      <div class="cat-feedback">${c.feedback}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('resultsSection').innerHTML = `
+    <div class="results-header">
+      <div class="results-title">YOUR ANALYSIS</div>
+      <div class="overall-score">
+        <div class="score-number ${sc(d.overall_score)}">${d.overall_score}</div>
+        <div class="score-label">Score / Grade: ${d.overall_grade}</div>
+      </div>
+    </div>
+    ${d.handedness_note ? `<div class="summary-card" style="background:#0d1018;border-color:#2a3040"><h4>Detected</h4><p>${d.handedness_note}</p></div>` : ''}
+    <div class="summary-card"><h4>Coach's Take</h4><p>${d.summary}</p></div>
+    ${d.goal_feedback ? `<div class="summary-card" style="border-color:#3a3020;background:#1a1a08"><h4 style="color:#f6c90e">🎯 Goal: ${opts.goal.replace('_',' ')}</h4><p>${d.goal_feedback}</p></div>` : ''}
+    ${catsHTML}
+    <div class="fix-card"><h4>🔧 #1 Thing To Fix</h4><p>${d.top_fix}</p></div>
+    <div class="tip-row">
+      <div class="tip-card"><h4>⬆️ Hangtime Tip</h4><p>${d.hangtime_tip}</p></div>
+      <div class="tip-card"><h4>📏 Distance Tip</h4><p>${d.distance_tip}</p></div>
+    </div>
+    <button class="btn-reset" onclick="resetApp()">← Analyze Another Punt</button>
+  `;
+  show('resultsSection');
+}
+
+function resetApp() {
+  videoFile=null; isImage=false;
+  document.getElementById('videoEl').src='';
+  document.getElementById('fileInput').value='';
+  document.getElementById('framesRow').innerHTML='';
+  document.getElementById('progressFill').style.width='0%';
+  show('uploadSection');
+  ['previewSection','imgPreviewSection','progressSection','resultsSection','errorBox'].forEach(hide);
+}
+
+// Helpers
+const show = id => document.getElementById(id).classList.remove('hidden');
+const hide = id => document.getElementById(id).classList.add('hidden');
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+const setProgress = (pct,label) => {
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressLabel').innerHTML = pct<100?`<span class="spinner"></span>${label}`:label;
+};
+const showError = msg => {
+  document.getElementById('errorBox').textContent='⚠️ '+msg;
+  show('errorBox');
+};
+function fileToBase64(file) {
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result.split(',')[1]);
+    r.onerror=()=>rej(new Error('Failed to read file'));
+    r.readAsDataURL(file);
+  });
+}
+
+// ===== POSE OVERLAY PLAYER =====
+// Connections between landmarks for drawing the skeleton (MediaPipe Pose indices)
+const POSE_CONNECTIONS = [
+  [11,12],[11,13],[13,15],[12,14],[14,16], // shoulders/arms
+  [11,23],[12,24],[23,24], // torso
+  [23,25],[25,27],[27,29],[27,31],[29,31], // left leg
+  [24,26],[26,28],[28,30],[28,32],[30,32]  // right leg
+];
+
+let poseInstance = null;
+let poseFrameData = []; // { time, landmarks }
+let poseAnimFrame = null;
+let poseDuration = 0;
+let poseCaptions = []; // { time, text }
+
+async function setupPosePlayer(file, analysisResult) {
+  const poseVideo = document.getElementById('poseVideoEl');
+  const poseCanvas = document.getElementById('poseCanvas');
+  const statusEl = document.getElementById('poseStatus');
+  show('posePlayerSection');
+  statusEl.textContent = 'Tracking your form...';
+
+  poseFrameData = [];
+  poseVideo.src = URL.createObjectURL(file);
+
+  await new Promise(res => {
+    poseVideo.addEventListener('loadedmetadata', () => {
+      poseCanvas.width = poseVideo.videoWidth || 640;
+      poseCanvas.height = poseVideo.videoHeight || 360;
+      poseDuration = poseVideo.duration;
+      res();
+    }, { once: true });
+  });
+
+  // Build captions from the AI's category feedback, spread across the clip's timeline
+  poseCaptions = buildCaptionsFromResult(analysisResult, poseDuration);
+
+  try {
+    if (!poseInstance) {
+      poseInstance = new Pose({
+        locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1635988162/${f}`
+      });
+      poseInstance.setOptions({
+        modelComplexity: 1,
+        smoothLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+    }
+
+    // Sample ~15 points across the clip and run pose detection on each
+    const sampleCount = 15;
+    for (let i = 0; i < sampleCount; i++) {
+      const t = (i / (sampleCount - 1)) * poseDuration * 0.96; // stay inside bounds
+      const landmarks = await detectPoseAtTime(poseVideo, poseInstance, t);
+      poseFrameData.push({ time: t, landmarks });
+      statusEl.textContent = `Tracking your form... ${Math.round(((i+1)/sampleCount)*100)}%`;
+    }
+
+    poseFrameData.sort((a,b) => a.time - b.time);
+    statusEl.textContent = 'Tracking complete — scrub to explore';
+  } catch (e) {
+    console.error('Pose tracking failed:', e);
+    statusEl.textContent = 'Form view ready (tracking unavailable)';
+  }
+
+  poseVideo.currentTime = 0;
+  drawPoseFrame(0);
+  setupPoseControls(poseVideo, poseCanvas);
+}
+
+function detectPoseAtTime(video, pose, time) {
+  return new Promise((resolve) => {
+    let resolved = false;
+    pose.onResults((results) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(results.poseLandmarks || null);
+    });
+    const onSeeked = async () => {
+      video.removeEventListener('seeked', onSeeked);
+      try { await pose.send({ image: video }); } catch(e) { /* ignore single-frame failures */ }
+      // Fallback in case onResults never fires
+      setTimeout(() => { if (!resolved) { resolved = true; resolve(null); } }, 800);
+    };
+    video.addEventListener('seeked', onSeeked, { once: true });
+    video.currentTime = time;
+  });
+}
+
+function buildCaptionsFromResult(result, duration) {
+  if (!result || !result.categories) return [];
+  const cats = result.categories;
+  return cats.map((cat, i) => ({
+    time: (duration * 0.96) * (i / cats.length),
+    text: `${cat.name} ${cat.score}/10 — ${cat.tip || ''}`,
+    score: cat.score
+  }));
+}
+
+function findNearestPoseFrame(t) {
+  if (!poseFrameData.length) return null;
+  let nearest = poseFrameData[0];
+  let bestDiff = Math.abs(nearest.time - t);
+  for (const f of poseFrameData) {
+    const d = Math.abs(f.time - t);
+    if (d < bestDiff) { bestDiff = d; nearest = f; }
+  }
+  return nearest;
+}
+
+function findActiveCaption(t) {
+  if (!poseCaptions.length) return null;
+  let active = poseCaptions[0];
+  for (const c of poseCaptions) {
+    if (c.time <= t) active = c; else break;
+  }
+  return active;
+}
+
+function positionCaption(capEl, canvas, bodyBounds, t, duration) {
+  // canvas is drawn centered inside .pose-stage; canvas.width/height are intrinsic pixel size,
+  // but displayed size can differ, so we map percentages of the body onto the canvas's rendered box.
+  const rect = canvas.getBoundingClientRect();
+  const stageRect = canvas.parentElement.getBoundingClientRect();
+  const canvasOffsetLeft = rect.left - stageRect.left;
+  const canvasOffsetTop = rect.top - stageRect.top;
+
+  // Keep the bubble's max width tied to the actual video frame width, not the page,
+  // so it never spills past the edges of a vertical 9:16 clip.
+  capEl.style.maxWidth = Math.max(rect.width * 0.62, 160) + 'px';
+
+  capEl.style.right = 'auto';
+  capEl.style.bottom = 'auto';
+
+  // Estimate whether the ball has likely been released: punts release in roughly
+  // the back third of the clip after the leg swing. Once we're past that point,
+  // move the caption to the bottom so it doesn't block the ball's flight path.
+  const releaseEstimatePct = 0.62;
+  const pastRelease = duration > 0 && (t / duration) > releaseEstimatePct;
+  const topPct = pastRelease ? 0.74 : 0.05;
+
+  // Default horizontal fallback if we have no body data yet
+  if (!bodyBounds) {
+    capEl.style.left = (canvasOffsetLeft + 14) + 'px';
+    capEl.style.top = (canvasOffsetTop + rect.height * topPct) + 'px';
+    return;
+  }
+
+  const w = canvas.width;
+  const bodyCenterXPct = ((bodyBounds.minX + bodyBounds.maxX) / 2) / w; // 0-1
+
+  // Pick whichever horizontal side (left or right of the body) has more open room,
+  // so the bubble never overlaps the torso/arms either.
+  const useRightSide = (1 - bodyCenterXPct) > bodyCenterXPct;
+
+  if (useRightSide) {
+    capEl.style.left = (canvasOffsetLeft + rect.width * 0.46) + 'px';
+  } else {
+    capEl.style.left = (canvasOffsetLeft + rect.width * 0.04) + 'px';
+  }
+  capEl.style.top = (canvasOffsetTop + rect.height * topPct) + 'px';
+}
+
+function scoreStatusColor(score) {
+  // score is out of 10
+  if (score >= 7) return '#4ade80'; // green
+  if (score >= 4) return '#f6c90e'; // yellow
+  return '#f87171'; // red
+}
+
+function drawPoseFrame(t) {
+  const poseVideo = document.getElementById('poseVideoEl');
+  const poseCanvas = document.getElementById('poseCanvas');
+  const ctx = poseCanvas.getContext('2d');
+  ctx.clearRect(0,0,poseCanvas.width, poseCanvas.height);
+  try { ctx.drawImage(poseVideo, 0, 0, poseCanvas.width, poseCanvas.height); } catch(e){}
+
+  const frame = findNearestPoseFrame(t);
+  let bodyBounds = null;
+  let anchorPoint = null; // point to draw the leader line from, in canvas pixel coords
+
+  if (frame && frame.landmarks) {
+    const lm = frame.landmarks;
+    const w = poseCanvas.width, h = poseCanvas.height;
+
+    // Draw connections
+    ctx.strokeStyle = '#4fd1c5';
+    ctx.lineWidth = 3;
+    POSE_CONNECTIONS.forEach(([a,b]) => {
+      if (lm[a] && lm[b]) {
+        ctx.beginPath();
+        ctx.moveTo(lm[a].x * w, lm[a].y * h);
+        ctx.lineTo(lm[b].x * w, lm[b].y * h);
+        ctx.stroke();
+      }
+    });
+    // Draw joints
+    ctx.fillStyle = '#4fd1c5';
+    const joints = [11,12,13,14,15,16,23,24,25,26,27,28,29,30,31,32];
+    joints.forEach(i => {
+      if (lm[i]) {
+        ctx.beginPath();
+        ctx.arc(lm[i].x * w, lm[i].y * h, 5, 0, Math.PI*2);
+        ctx.fill();
+      }
+    });
+
+    // Compute the body's bounding box in pixel space so we know where the open space is
+    const xs = joints.filter(i => lm[i]).map(i => lm[i].x * w);
+    const ys = joints.filter(i => lm[i]).map(i => lm[i].y * h);
+    if (xs.length) {
+      bodyBounds = { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+      anchorPoint = { x: (bodyBounds.minX + bodyBounds.maxX) / 2, y: bodyBounds.minY };
+    }
+  }
+
+  // Caption — positioned dynamically in the open space beside the body
+  const cap = findActiveCaption(t);
+  const capEl = document.getElementById('poseCaption');
+  const capTextEl = document.getElementById('poseCaptionText');
+  const capDotEl = capEl.querySelector('.pose-caption-dot');
+  if (cap) {
+    capTextEl.textContent = cap.text;
+    if (capDotEl && typeof cap.score === 'number') {
+      capDotEl.style.background = scoreStatusColor(cap.score);
+    }
+    positionCaption(capEl, poseCanvas, bodyBounds, t, poseDuration);
+    capEl.classList.remove('hidden');
+  } else {
+    capEl.classList.add('hidden');
+  }
+
+  document.getElementById('poseScrub').value = poseDuration ? (t / poseDuration) * 100 : 0;
+}
+
+let poseControlsBound = false;
+function setupPoseControls(video, canvas) {
+  const scrub = document.getElementById('poseScrub');
+  const playBtn = document.getElementById('posePlayBtn');
+
+  drawPoseFrame(video.currentTime || 0);
+
+  if (poseControlsBound) return; // avoid double-binding listeners across multiple analyses
+  poseControlsBound = true;
+
+  scrub.addEventListener('input', () => {
+    video.pause();
+    playBtn.textContent = '▶';
+    const t = (scrub.value / 100) * video.duration;
+    video.currentTime = t;
+  });
+
+  video.addEventListener('seeked', () => drawPoseFrame(video.currentTime));
+
+  function renderLoop() {
+    if (!video.paused && !video.ended) {
+      drawPoseFrame(video.currentTime);
+      poseAnimFrame = requestAnimationFrame(renderLoop);
+    }
+  }
+  video.addEventListener('play', () => { poseAnimFrame = requestAnimationFrame(renderLoop); });
+  video.addEventListener('pause', () => { if (poseAnimFrame) cancelAnimationFrame(poseAnimFrame); });
+  video.addEventListener('ended', () => { playBtn.textContent = '▶'; });
+}
+
+function togglePosePlay() {
+  const video = document.getElementById('poseVideoEl');
+  const playBtn = document.getElementById('posePlayBtn');
+  if (video.paused) { video.play(); playBtn.textContent = '⏸'; }
+  else { video.pause(); playBtn.textContent = '▶'; }
+}
+
+function setPoseSpeed(speed, btn) {
+  const video = document.getElementById('poseVideoEl');
+  video.playbackRate = speed;
+  document.querySelectorAll('.pose-speed-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function stopPosePlayback() {
+  const video = document.getElementById('poseVideoEl');
+  if (video) { video.pause(); }
+  if (poseAnimFrame) cancelAnimationFrame(poseAnimFrame);
+}
+</script>
+</body>
+</html>
