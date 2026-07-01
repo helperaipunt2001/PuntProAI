@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PuntProAI — Punt Form Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1635988162/pose.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0c10;color:#e8eaf0;font-family:'Inter',sans-serif;min-height:100vh}
+header{display:flex;align-items:center;gap:10px;padding:18px 28px;border-bottom:1px solid #1e2230;background:#0d0f14}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:#fff}
+.logo span{color:#4fd1c5}
+.badge{background:#1a2a28;color:#4fd1c5;font-size:10px;font-weight:700;letter-spacing:1px;padding:3px 8px;border-radius:4px}
+main{max-width:780px;margin:0 auto;padding:40px 20px 80px}
+.hero{text-align:center;margin-bottom:36px}
+.hero h1{font-family:'Bebas Neue',sans-serif;font-size:46px;letter-spacing:3px;color:#fff;margin-bottom:10px}
+.hero h1 span{color:#4fd1c5}
+.hero p{color:#8a90a0;font-size:14px;max-width:440px;margin:0 auto;line-height:1.6}
+
+/* Options Panel */
+.options-panel{background:#0d1018;border:1px solid #1e2230;border-radius:16px;padding:24px;margin-bottom:24px}
+.options-title{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#4fd1c5;margin-bottom:16px}
+.options-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:500px){.options-grid{grid-template-columns:1fr}}
+.option-group label{display:block;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#5a6880;margin-bottom:8px}
+.btn-group{display:flex;gap:6px;flex-wrap:wrap}
+.opt-btn{background:#1a1f2c;border:1px solid #2a3040;color:#8a90a0;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;transition:all 0.15s}
+.opt-btn:hover{border-color:#4fd1c5;color:#4fd1c5}
+.opt-btn.active{background:#1a2a28;border-color:#4fd1c5;color:#4fd1c5}
+.goal-group{grid-column:1/-1}
+.goal-group .btn-group{flex-wrap:wrap}
+
+/* Upload */
+.upload-zone{border:2px dashed #2a3040;border-radius:16px;padding:48px 24px;text-align:center;cursor:pointer;transition:all 0.2s;background:#0d1018;position:relative}
+.upload-zone:hover,.upload-zone.drag-over{border-color:#4fd1c5;background:#0d1a18}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-icon{width:56px;height:56px;background:#1a2a28;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:26px}
+.upload-zone h3{font-size:16px;font-weight:600;color:#e8eaf0;margin-bottom:6px}
+.upload-zone p{font-size:13px;color:#5a6070}
+.formats{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.fmt{background:#1a1f2c;color:#5a6880;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px}
+
+/* Preview */
+.video-preview{margin-top:20px;border-radius:14px;overflow:hidden;background:#0d1018;border:1px solid #1e2230}
+.video-preview video{width:100%;max-height:320px;display:block;object-fit:contain;background:#000}
+.video-info{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.video-name{font-size:13px;font-weight:500;color:#c0c8d8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.btn-analyze{background:#4fd1c5;color:#0a0c10;border:none;border-radius:10px;padding:12px 28px;font-size:14px;font-weight:700;font-family:'Inter',sans-serif;cursor:pointer;transition:all 0.2s;flex-shrink:0}
+.btn-analyze:hover{background:#38b2a8}
+.btn-analyze:disabled{background:#2a3a38;color:#4a5a58;cursor:not-allowed}
+
+/* Progress */
+.progress-wrap{margin-top:28px;background:#0d1018;border:1px solid #1e2230;border-radius:14px;padding:28px 24px;text-align:center}
+.progress-label{font-size:13px;color:#8a90a0;margin-bottom:16px;min-height:20px}
+.progress-track{background:#1a1f2c;border-radius:99px;height:6px;overflow:hidden;margin-bottom:12px}
+.progress-fill{height:100%;background:linear-gradient(90deg,#4fd1c5,#38b2a8);border-radius:99px;transition:width 0.4s ease;width:0%}
+.frames-row{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.frame-thumb{width:80px;height:56px;border-radius:8px;object-fit:cover;border:2px solid #1e2230;transition:border-color 0.2s}
+.frame-thumb.active{border-color:#4fd1c5}
+
+/* Results */
+.results{margin-top:28px}
+.results-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;gap:12px;flex-wrap:wrap}
+.results-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:#fff}
+.overall-score{display:flex;flex-direction:column;align-items:center;background:#0d1018;border:1px solid #4fd1c5;border-radius:14px;padding:16px 24px;min-width:110px}
+.score-number{font-family:'Bebas Neue',sans-serif;font-size:48px;line-height:1}
+.score-label{font-size:10px;font-weight:700;letter-spacing:1px;color:#5a8080;text-transform:uppercase}
+.summary-card{background:#0d1a18;border:1px solid #2a3a38;border-radius:14px;padding:22px;margin-bottom:14px}
+.summary-card h4{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#4fd1c5;margin-bottom:10px}
+.summary-card p{font-size:14px;color:#c0c8d8;line-height:1.7}
+.cat-card{background:#0d1018;border:1px solid #1e2230;border-radius:14px;padding:20px;margin-bottom:14px}
+.cat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cat-name{font-size:13px;font-weight:700;letter-spacing:0.5px;color:#c0c8d8;text-transform:uppercase}
+.cat-score{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px}
+.g{color:#4fd1c5}.y{color:#f6c90e}.r{color:#f87171}
+.bar-track{background:#1a1f2c;border-radius:99px;height:5px;margin-bottom:12px;overflow:hidden}
+.bar-fill{height:100%;border-radius:99px}
+.bg{background:#4fd1c5}.by{background:#f6c90e}.br{background:#f87171}
+.cat-feedback{font-size:13px;color:#8a90a0;line-height:1.65}
+.fix-card{background:#1a1208;border:1px solid #3a2a08;border-radius:14px;padding:22px;margin-bottom:14px}
+.fix-card h4{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#f6c90e;margin-bottom:10px}
+.fix-card p{font-size:14px;color:#c0c8d8;line-height:1.7}
+.tip-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+@media(max-width:500px){.tip-row{grid-template-columns:1fr}}
+.tip-card{background:#0d1018;border:1px solid #1e2230;border-radius:12px;padding:16px}
+.tip-card h4{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#8a90a0;margin-bottom:8px}
+.tip-card p{font-size:13px;color:#c0c8d8;line-height:1.6}
+.btn-reset{background:transparent;border:1px solid #2a3040;color:#8a90a0;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;margin-top:8px;transition:all 0.2s;width:100%}
+.btn-reset:hover{border-color:#4fd1c5;color:#4fd1c5}
+.error-box{background:#1a0d0d;border:1px solid #5a2020;border-radius:12px;padding:16px 20px;color:#f87171;font-size:13px;margin-top:20px;line-height:1.6}
+.hidden{display:none!important}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid #2a3a38;border-top-color:#4fd1c5;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+canvas{display:none}
+
+/* Pose Overlay Player */
+.pose-player-wrap{margin-top:28px;background:#0d1018;border:1px solid #1e2230;border-radius:16px;overflow:hidden}
+.pose-player-header{padding:16px 20px;border-bottom:1px solid #1e2230;display:flex;align-items:center;justify-content:space-between}
+.pose-player-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.5px;color:#fff}
+.pose-status{font-size:11px;color:#5a8080;font-weight:600;letter-spacing:0.5px}
+.pose-stage{position:relative;background:#000;display:flex;justify-content:center}
+.pose-stage video{display:none}
+.pose-stage canvas.pose-canvas{display:block;max-width:100%;max-height:480px}
+.pose-caption{position:absolute;background:rgba(13,16,24,0.92);border:1px solid #4fd1c5;border-radius:12px;padding:8px 13px;font-size:12px;font-weight:600;color:#e8eaf0;display:flex;align-items:flex-start;gap:7px;backdrop-filter:blur(4px);line-height:1.35;transition:left 0.15s ease, top 0.15s ease}
+.pose-caption-dot{width:8px;height:8px;border-radius:50%;background:#4fd1c5;flex-shrink:0;margin-top:5px}
+.pose-controls{padding:16px 20px;display:flex;align-items:center;gap:14px}
+.pose-play-btn{width:38px;height:38px;border-radius:50%;background:#4fd1c5;border:none;color:#0a0c10;font-size:14px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.2s}
+.pose-play-btn:hover{background:#38b2a8}
+.pose-scrub{flex:1;-webkit-appearance:none;appearance:none;height:5px;border-radius:99px;background:#1a1f2c;cursor:pointer;outline:none}
+.pose-scrub::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#4fd1c5;cursor:pointer;box-shadow:0 0 0 3px rgba(79,209,197,0.2)}
+.pose-scrub::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#4fd1c5;cursor:pointer;border:none}
+.pose-speed-group{display:flex;gap:6px;flex-shrink:0}
+.pose-speed-btn{background:#1a1f2c;border:1px solid #2a3040;color:#8a90a0;border-radius:6px;padding:5px 9px;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s}
+.pose-speed-btn.active{background:#1a2a28;border-color:#4fd1c5;color:#4fd1c5}
+.pose-legend{padding:0 20px 16px;display:flex;gap:16px;flex-wrap:wrap}
+.pose-legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:#5a6880}
+.pose-legend-dot{width:8px;height:8px;border-radius:50%}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">PUNT<span>PRO</span>AI</div>
+  <div class="badge">BETA</div>
+</header>
+<main>
+  <div class="hero">
+    <h1>ANALYZE YOUR<br><span>PUNT FORM</span></h1>
+    <p>Upload a video or photo. Our AI gives you a real breakdown in seconds.</p>
+  </div>
+
+  <!-- Options -->
+  <div class="options-panel">
+    <div class="options-title">Tell us about your punt</div>
+    <div class="options-grid">
+      <div class="option-group">
+        <label>Kicking Foot</label>
+        <div class="btn-group">
+          <button class="opt-btn active" data-group="foot" data-val="right">Right (Righty)</button>
+          <button class="opt-btn" data-group="foot" data-val="left">Left (Lefty)</button>
+        </div>
+      </div>
+      <div class="option-group">
+        <label>Punt Type</label>
+        <div class="btn-group">
+          <button class="opt-btn active" data-group="type" data-val="spiral">Spiral</button>
+          <button class="opt-btn" data-group="type" data-val="eoe">End Over End</button>
+        </div>
+      </div>
+      <div class="option-group">
+        <label>Level</label>
+        <div class="btn-group">
+          <button class="opt-btn" data-group="level" data-val="youth">Youth (14 & under)</button>
+          <button class="opt-btn active" data-group="level" data-val="highschool">High School (15-18)</button>
+          <button class="opt-btn" data-group="level" data-val="collegepro">Collegiate / Professional</button>
+        </div>
+      </div>
+      <div class="option-group">
+        <label>Primary Goal</label>
+        <div class="btn-group goal-group">
+          <button class="opt-btn active" data-group="goal" data-val="overall">Overall Form</button>
+          <button class="opt-btn" data-group="goal" data-val="hangtime">More Hangtime</button>
+          <button class="opt-btn" data-group="goal" data-val="distance">More Distance</button>
+          <button class="opt-btn" data-group="goal" data-val="contact">Better Contact</button>
+          <button class="opt-btn" data-group="goal" data-val="spiral_shape">Fix My Spiral</button>
+          <button class="opt-btn" data-group="goal" data-val="consistency">Consistency</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload -->
+  <div id="uploadSection">
+    <div class="upload-zone" id="dropZone">
+      <input type="file" id="fileInput" accept="video/*,image/*"/>
+      <div class="upload-icon">🏈</div>
+      <h3>Drop your punt video or photo here</h3>
+      <p>Or click to browse your files</p>
+      <div class="formats">
+        <span class="fmt">MP4</span><span class="fmt">MOV</span>
+        <span class="fmt">JPG</span><span class="fmt">PNG</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div id="previewSection" class="hidden">
+    <div class="video-preview">
+      <video id="videoEl" controls playsinline></video>
+      <div class="video-info">
+        <div class="video-name" id="videoName"></div>
+        <button class="btn-analyze" id="analyzeBtn" onclick="startAnalysis()">Analyze Punt</button>
+      </div>
+    </div>
+  </div>
+  <div id="imgPreviewSection" class="hidden" style="margin-top:20px">
+    <img id="imgPreviewEl" style="width:100%;border-radius:14px;border:1px solid #1e2230;max-height:340px;object-fit:contain;background:#000;display:block"/>
+    <div class="video-info" style="background:#0d1018;border:1px solid #1e2230;border-radius:0 0 14px 14px;margin-top:-1px">
+      <div class="video-name" id="imgName"></div>
+      <button class="btn-analyze" onclick="startImageAnalysis()">Analyze Punt</button>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div id="progressSection" class="hidden">
+    <div class="progress-wrap">
+      <div class="progress-label" id="progressLabel"><span class="spinner"></span>Starting...</div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="frames-row" id="framesRow"></div>
+    </div>
+  </div>
+
+  <div id="errorBox" class="error-box hidden"></div>
+
+  <!-- Pose Overlay Player -->
+  <div id="posePlayerSection" class="pose-player-wrap hidden">
+    <div class="pose-player-header">
+      <div class="pose-player-title">FORM BREAKDOWN</div>
+      <div class="pose-status" id="poseStatus">Analyzing motion...</div>
+    </div>
+    <div class="pose-stage">
+      <video id="poseVideoEl" playsinline muted></video>
+      <canvas id="poseCanvas" class="pose-canvas"></canvas>
+      <div class="pose-caption hidden" id="poseCaption">
+        <span class="pose-caption-dot"></span>
+        <span id="poseCaptionText"></span>
+      </div>
+    </div>
+    <div class="pose-controls">
+      <button class="pose-play-btn" id="posePlayBtn" onclick="togglePosePlay()">▶</button>
+      <input type="range" class="pose-scrub" id="poseScrub" min="0" max="100" value="0" step="0.1"/>
+      <div class="pose-speed-group">
+        <button class="pose-speed-btn" data-speed="0.25" onclick="setPoseSpeed(0.25, this)">0.25x</button>
+        <button class="pose-speed-btn" data-speed="0.5" onclick="setPoseSpeed(0.5, this)">0.5x</button>
+        <button class="pose-speed-btn active" data-speed="1" onclick="setPoseSpeed(1, this)">1x</button>
+      </div>
+    </div>
+    <div class="pose-legend">
+      <div class="pose-legend-item"><span class="pose-legend-dot" style="background:#4fd1c5"></span>Joint tracking</div>
+      <div class="pose-legend-item"><span class="pose-legend-dot" style="background:#4ade80"></span>Good (8-10)</div>
+      <div class="pose-legend-item"><span class="pose-legend-dot" style="background:#f6c90e"></span>Okay (4-7)</div>
+      <div class="pose-legend-item"><span class="pose-legend-dot" style="background:#f87171"></span>Needs work (0-3)</div>
+    </div>
+  </div>
+
+  <div id="resultsSection" class="results hidden"></div>
+  <canvas id="canvas"></canvas>
+</main>
+
+<script>
+// State
+const opts = { foot: 'right', type: 'spiral', goal: 'overall', level: 'highschool' };
+let videoFile = null, isImage = false;
+
+// Option buttons
+document.querySelectorAll('.opt-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const g = btn.dataset.group;
+    document.querySelectorAll(`[data-group="${g}"]`).forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    opts[g] = btn.dataset.val;
+  });
+});
+
+// File input
+const fileInput = document.getElementById('fileInput');
+const dropZone  = document.getElementById('dropZone');
+fileInput.addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+
+function handleFile(file) {
+  videoFile = file;
+  isImage = file.type.startsWith('image/');
+  hide('uploadSection'); hide('progressSection'); hide('resultsSection'); hide('errorBox'); hide('posePlayerSection');
+  stopPosePlayback();
+
+  if (isImage) {
+    document.getElementById('imgPreviewEl').src = URL.createObjectURL(file);
+    document.getElementById('imgName').textContent = file.name;
+    show('imgPreviewSection'); hide('previewSection');
+  } else {
+    document.getElementById('videoEl').src = URL.createObjectURL(file);
+    document.getElementById('videoName').textContent = file.name;
+    show('previewSection'); hide('imgPreviewSection');
+  }
+}
+
+// Image analysis
+async function startImageAnalysis() {
+  hide('imgPreviewSection'); show('progressSection'); hide('errorBox');
+  setProgress(20, 'Reading your image...');
+  try {
+    const b64 = await fileToBase64(videoFile);
+    setProgress(50, 'Sending to AI coach...');
+    const result = await callAPI([{ type:'image', source:{ type:'base64', media_type: videoFile.type, data: b64 }}]);
+    setProgress(100, 'Done!');
+    await sleep(300);
+    hide('progressSection');
+    renderResults(result);
+  } catch(err) {
+    hide('progressSection'); show('imgPreviewSection');
+    showError(err.message);
+  }
+}
+
+// Video analysis
+async function startAnalysis() {
+  hide('previewSection'); show('progressSection'); hide('errorBox');
+  document.getElementById('framesRow').innerHTML = '';
+  setProgress(5, 'Extracting frames from video...');
+  const video = document.getElementById('videoEl');
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+
+  try {
+    const frames = await extractFrames(video, canvas, ctx, 10);
+    setProgress(40, 'Sending frames to AI coach...');
+    const imgContent = frames.map(b64 => ({ type:'image', source:{ type:'base64', media_type:'image/jpeg', data:b64 }}));
+    const result = await callAPI(imgContent);
+    setProgress(70, 'Tracking your form...');
+    await setupPosePlayer(videoFile, result);
+    setProgress(100, 'Done!');
+    await sleep(300);
+    hide('progressSection');
+    renderResults(result);
+  } catch(err) {
+    hide('progressSection'); show('previewSection');
+    showError(err.message);
+  }
+}
+
+async function extractFrames(video, canvas, ctx, count) {
+  return new Promise((resolve, reject) => {
+    const go = async () => {
+      const dur = video.duration;
+      if (!dur || isNaN(dur)) return reject(new Error('Could not read video duration. Try converting to MP4 and trimming to under 30 seconds.'));
+
+      // Punts almost always happen in the back ~65% of an uploaded clip (catch, drop,
+      // approach, contact, follow-through) — the first chunk is usually just setup/standing.
+      // We sample non-uniformly: lightly across the early clip, then densely through the
+      // action window, so we don't miss the actual kick.
+      const actionStart = dur * 0.30;
+      const actionEnd = dur * 0.97;
+      const setupFrames = Math.max(1, Math.round(count * 0.2));   // ~20% of frames: setup/approach
+      const actionFrames = count - setupFrames;                    // ~80% of frames: the actual kick
+
+      const positions = [];
+      for (let i = 0; i < setupFrames; i++) {
+        positions.push((i / setupFrames) * actionStart);
+      }
+      for (let i = 0; i < actionFrames; i++) {
+        positions.push(actionStart + (i / (actionFrames - 1)) * (actionEnd - actionStart));
+      }
+      positions.sort((a,b) => a - b);
+
+      const frames = [];
+      const seenHashes = new Set();
+      let duplicateCount = 0;
+      for (let i=0; i<positions.length; i++) {
+        const b64 = await seekCapture(video, canvas, ctx, positions[i]);
+        // Cheap duplicate-detection: hash a small slice of the base64 string.
+        // If the same frame gets captured repeatedly, something upstream is broken.
+        const sampleKey = b64.slice(100, 160);
+        if (seenHashes.has(sampleKey)) duplicateCount++;
+        seenHashes.add(sampleKey);
+        frames.push(b64);
+        const img = document.createElement('img');
+        img.src = 'data:image/jpeg;base64,'+b64;
+        img.className = 'frame-thumb';
+        document.getElementById('framesRow').appendChild(img);
+        setTimeout(()=>img.classList.add('active'),50);
+        setProgress(10+Math.round((i+1)/count*32), `Extracting frame ${i+1} of ${count}...`);
+      }
+      if (duplicateCount > 0) {
+        console.warn(`Frame extraction warning: ${duplicateCount} of ${positions.length} frames appear to be duplicates. Video seeking may not be working correctly for this file.`);
+      }
+      resolve(frames);
+    };
+    video.readyState>=1 ? go() : video.addEventListener('loadedmetadata', go, {once:true});
+  });
+}
+
+function seekCapture(video, canvas, ctx, time) {
+  return new Promise((resolve, reject) => {
+    const targetTime = Math.max(0, time);
+    let settled = false;
+
+    const capture = () => {
+      if (settled) return;
+      settled = true;
+      try {
+        // Cap the longest side to avoid huge payloads from high-resolution source video
+        // (e.g. broadcast/NFL footage can be 1080p+; we don't need that much detail for analysis).
+        const MAX_DIM = 640;
+        const nativeW = video.videoWidth || 640;
+        const nativeH = video.videoHeight || 360;
+        const scale = Math.min(1, MAX_DIM / Math.max(nativeW, nativeH));
+        canvas.width = Math.round(nativeW * scale);
+        canvas.height = Math.round(nativeH * scale);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
+      } catch (e) {
+        reject(new Error('Frame capture failed — video may be DRM protected.'));
+      }
+    };
+
+    const onSeeked = () => {
+      video.removeEventListener('seeked', onSeeked);
+      // Give the browser one extra paint cycle to ensure the new frame is actually decoded
+      // and on-screen before we read it from the canvas — fixes frames silently duplicating.
+      requestAnimationFrame(() => requestAnimationFrame(capture));
+    };
+
+    video.addEventListener('seeked', onSeeked);
+    video.currentTime = targetTime;
+
+    // Fallback: if currentTime was already at (or extremely close to) targetTime, some
+    // browsers never fire 'seeked' at all. Poll briefly and capture once the time has
+    // genuinely landed near target, or time out and capture whatever is there so we
+    // never hang or silently reuse a stale frame without at least trying to move past it.
+    let pollAttempts = 0;
+    const poll = setInterval(() => {
+      pollAttempts++;
+      if (settled) { clearInterval(poll); return; }
+      if (Math.abs(video.currentTime - targetTime) < 0.05) {
+        clearInterval(poll);
+        video.removeEventListener('seeked', onSeeked);
+        requestAnimationFrame(() => requestAnimationFrame(capture));
+      } else if (pollAttempts > 40) { // ~2s timeout safety net
+        clearInterval(poll);
+        video.removeEventListener('seeked', onSeeked);
+        capture();
+      }
+    }, 50);
+  });
+}
+
+async function callAPI(imageContent) {
+  const dropClock = opts.foot === 'right' ? '11 o\'clock' : '1 o\'clock';
+  const levelLabels = { youth: 'YOUTH (14 & under)', highschool: 'HIGH SCHOOL (15-18)', collegepro: 'COLLEGIATE/PROFESSIONAL' };
+  const puntDesc = `${opts.foot === 'left' ? 'LEFT-FOOTED' : 'RIGHT-FOOTED'} punter, ${opts.type === 'spiral' ? 'SPIRAL' : 'END-OVER-END'} punt, goal: ${opts.goal.replace('_',' ')}, level: ${levelLabels[opts.level]}`;
+
+  const systemPrompt = `You are PuntProAI. Analyze these punt video frames and answer a specific checklist of observable questions. Answer ONLY what you can actually see — do not guess.
+
+This punter is ${opts.foot === 'left' ? 'LEFT-FOOTED (correct drop: 1 o\'clock — outside left hip, angled inward)' : 'RIGHT-FOOTED (correct drop: 11 o\'clock — outside right hip, angled inward)'}.
+Punt type: ${opts.type === 'spiral' ? 'SPIRAL' : 'END-OVER-END'}.
+Level: ${levelLabels[opts.level]}.
+
+For each checklist item, answer with one of: "yes", "no", "partial", or "unclear" (only use unclear if genuinely impossible to tell from the frames).
+
+Respond ONLY with this exact JSON, no markdown:
+{
+  "checklist": {
+    "ball_gets_good_height": "<yes/no/partial/unclear — does the ball visibly arc upward to good height for this level?>",
+    "contact_looks_clean": "<yes/no/partial/unclear — does contact look clean and solid vs mishit, off-heel, or shanked?>",
+    "spiral_is_tight": "<yes/no/partial/unclear — is the ${opts.type === 'spiral' ? 'spiral tight and consistent' : 'end-over-end rotation clean and consistent'}?>",
+    "ball_gets_good_distance": "<yes/no/partial/unclear — does the ball travel good distance before leaving frame?>",
+    "followthrough_leg_finishes_high": "<yes/no/partial/unclear — does the kicking leg finish high, at least above waist level?>",
+    "followthrough_is_complete": "<yes/no/partial/unclear — is the follow-through complete or cut short?>",
+    "approach_looks_controlled": "<yes/no/partial/unclear — do the steps look controlled with no stumbling, lunging, or overstriding?>",
+    "drop_looks_consistent": "<yes/no/partial/unclear — does the drop look consistent with no visible bobble, flip, or early release?>"
+  },
+  "observations": {
+    "ball_flight": "<2-3 sentences describing exactly what the ball looks like in the air — height, spiral quality, trajectory>",
+    "contact_and_followthrough": "<2-3 sentences on what contact and follow-through actually look like in the frames>",
+    "approach_and_drop": "<1-2 sentences on approach and drop>",
+    "handedness_note": "<one sentence confirming detected kicking foot and correct drop clock position>"
+  },
+  "coaching": {
+    "summary": "<2-3 sentence overall assessment — direct coaching voice, specific to what you saw>",
+    "top_fix": "<single most important thing to fix, with a specific drill or cue — based only on what you actually saw>",
+    "goal_feedback": "<specific advice for their goal: ${opts.goal.replace('_',' ')}>",
+    "hangtime_tip": "<one concrete tip to improve hangtime>",
+    "distance_tip": "<one concrete tip to improve distance>",
+    "tips": [
+      {"category": "The Drop", "tip": "<under 8 words, TikTok caption style>"},
+      {"category": "Approach & Steps", "tip": "<under 8 words>"},
+      {"category": "Hip Drive", "tip": "<under 8 words>"},
+      {"category": "Contact Point", "tip": "<under 8 words>"},
+      {"category": "Follow-Through", "tip": "<under 8 words>"},
+      {"category": "${opts.type === 'spiral' ? 'Spiral & Ball Flight' : 'Ball Flight & Rotation'}", "tip": "<under 8 words>"}
+    ]
+  }
+}`;
+
+  const userText = `Punter info: ${puntDesc}. Sequential frames from a punt video — first 1-2 frames show setup/approach, the rest show the actual punt and ball flight. Answer the checklist based only on what you can actually observe in these specific frames.`;
+
+    const response = await fetch('/api/analyze', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ imageContent, systemPrompt, userText })
+  });
+
+  if (!response.ok) {
+    if (response.status === 413) {
+      throw new Error('This video is too large. Try trimming the clip to just the punt (a few seconds).');
+    }
+    const e = await response.json().catch(()=>({}));
+    throw new Error(e.error || `Server error ${response.status}`);
+  }
+  const raw = await response.json();
+  return convertChecklistToResult(raw, opts.level, opts.type);
+}
+
+// Convert checklist answers into deterministic scores using your scale:
+// Bad: 4.0-6.9 | Okay: 7.0-8.4 | Great: 8.5-10.0
+// Collegiate/pro threshold is tougher (requires more "yes" answers for same score)
+function convertChecklistToResult(raw, level, puntType) {
+  if (!raw || !raw.checklist) return raw;
+  const cl = raw.checklist;
+  const obs = raw.observations || {};
+  const coaching = raw.coaching || {};
+
+  // Convert answers to points: yes=1, partial=0.5, no/unclear=0
+  const score = k => ({ yes: 1, partial: 0.5, no: 0, unclear: 0 }[cl[k]] ?? 0);
+
+  // BALL FLIGHT / OUTCOME (60% weight) — 4 questions, max 4 points
+  const outcomePts =
+    score('ball_gets_good_height') +
+    score('contact_looks_clean') +
+    score('spiral_is_tight') +
+    score('ball_gets_good_distance');
+
+  // FORM / MECHANICS (40% weight) — 4 questions, max 4 points
+  const formPts =
+    score('followthrough_leg_finishes_high') +
+    score('followthrough_is_complete') +
+    score('approach_looks_controlled') +
+    score('drop_looks_consistent');
+
+  // Weighted total out of 10: outcome worth 6, form worth 4
+  const weightedTotal = (outcomePts / 4) * 6 + (formPts / 4) * 4;
+
+  // Level-specific thresholds for the final 0-10 scale
+  // Collegiate/pro is harder: needs more points to reach the same score bucket
+  const thresholds = {
+    youth:      { great: 6.0, okay: 4.0 },  // youth: generous — good form scores well
+    highschool: { great: 6.5, okay: 4.5 },  // HS: mostly-yes result gets 8.5+
+    collegepro: { great: 8.0, okay: 6.0 }   // college/pro: tougher — needs near-perfect to score 8.5+
+  };
+  const t = thresholds[level] || thresholds.highschool;
+
+  // Map weighted total (0-10) to your score bands
+  let finalScore;
+  if (weightedTotal >= t.great) {
+    // Great band: 8.5-10.0
+    finalScore = 8.5 + ((weightedTotal - t.great) / (10 - t.great)) * 1.5;
+  } else if (weightedTotal >= t.okay) {
+    // Okay band: 7.0-8.4
+    finalScore = 7.0 + ((weightedTotal - t.okay) / (t.great - t.okay)) * 1.4;
+  } else {
+    // Bad band: 4.0-6.9
+    finalScore = 4.0 + (weightedTotal / t.okay) * 2.9;
+  }
+
+  finalScore = Math.round(finalScore * 10) / 10;
+  finalScore = Math.max(4.0, Math.min(10.0, finalScore));
+
+  // Build category scores from checklist for display
+  // Each category gets a score derived from its specific checklist answer(s)
+  const catScore = (pts) => {
+    if (pts >= 1)   return level === 'collegepro' ? 9 : 9;
+    if (pts >= 0.5) return level === 'collegepro' ? 7 : 8;
+    return level === 'collegepro' ? 4 : 5;
+  };
+
+  const categories = [
+    {
+      name: 'The Drop',
+      score: catScore(score('drop_looks_consistent')),
+      feedback: obs.approach_and_drop || '',
+      tip: coaching.tips?.find(t => t.category === 'The Drop')?.tip || ''
+    },
+    {
+      name: 'Approach & Steps',
+      score: catScore(score('approach_looks_controlled')),
+      feedback: obs.approach_and_drop || '',
+      tip: coaching.tips?.find(t => t.category === 'Approach & Steps')?.tip || ''
+    },
+    {
+      name: 'Hip Drive',
+      score: catScore((score('contact_looks_clean') + score('ball_gets_good_distance')) / 2),
+      feedback: obs.contact_and_followthrough || '',
+      tip: coaching.tips?.find(t => t.category === 'Hip Drive')?.tip || ''
+    },
+    {
+      name: 'Contact Point',
+      score: catScore(score('contact_looks_clean')),
+      feedback: obs.contact_and_followthrough || '',
+      tip: coaching.tips?.find(t => t.category === 'Contact Point')?.tip || ''
+    },
+    {
+      name: 'Follow-Through',
+      score: catScore((score('followthrough_leg_finishes_high') + score('followthrough_is_complete')) / 2),
+      feedback: obs.contact_and_followthrough || '',
+      tip: coaching.tips?.find(t => t.category === 'Follow-Through')?.tip || ''
+    },
+    {
+      name: puntType === 'spiral' ? 'Spiral & Ball Flight' : 'Ball Flight & Rotation',
+      score: catScore((score('ball_gets_good_height') + score('spiral_is_tight')) / 2),
+      feedback: obs.ball_flight || '',
+      tip: coaching.tips?.find(t => t.category === (puntType === 'spiral' ? 'Spiral & Ball Flight' : 'Ball Flight & Rotation'))?.tip || ''
+    }
+  ];
+
+  return {
+    overall_score_10: finalScore,
+    overall_score: Math.round(finalScore * 10),
+    overall_grade: gradeFromScore(finalScore),
+    handedness_note: obs.handedness_note || '',
+    summary: coaching.summary || '',
+    goal_feedback: coaching.goal_feedback || '',
+    top_fix: coaching.top_fix || '',
+    hangtime_tip: coaching.hangtime_tip || '',
+    distance_tip: coaching.distance_tip || '',
+    categories,
+    _debug: { outcomePts, formPts, weightedTotal, checklist: cl }
+  };
+  window._lastDebug = result._debug;
+  window._lastResult = result;
+  return result;
+}
+
+function gradeFromScore(avgOutOf10) {
+  if (avgOutOf10 >= 9.7) return 'A+';
+  if (avgOutOf10 >= 9.3) return 'A';
+  if (avgOutOf10 >= 9.0) return 'A-';
+  if (avgOutOf10 >= 8.7) return 'B+';
+  if (avgOutOf10 >= 8.3) return 'B';
+  if (avgOutOf10 >= 8.0) return 'B-';
+  if (avgOutOf10 >= 7.7) return 'C+';
+  if (avgOutOf10 >= 7.0) return 'C';
+  if (avgOutOf10 >= 6.0) return 'D';
+  return 'F';
+}
+
+function renderResults(d) {
+  const sc10 = n => n >= 8 ? 'g' : n >= 4 ? 'y' : 'r';
+  const bc10 = n => n >= 8 ? 'bg' : n >= 4 ? 'by' : 'br';
+  const sc = n => sc10(n/10);
+  const bc = n => bc10(n/10);
+  const catsHTML = d.categories.map(c => {
+    const isNA = c.score === null || c.score === undefined || c.score === '';
+    if (isNA) {
+      return `<div class="cat-card">
+        <div class="cat-top">
+          <div class="cat-name">${c.name}</div>
+          <div class="cat-score" style="color:#5a6880">N/A</div>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:100%;background:#2a3040"></div></div>
+        <div class="cat-feedback">${c.feedback}</div>
+      </div>`;
+    }
+    const pct = (c.score/10)*100;
+    return `<div class="cat-card">
+      <div class="cat-top">
+        <div class="cat-name">${c.name}</div>
+        <div class="cat-score ${sc(c.score*10)}">${c.score}<span style="font-size:13px;color:#4a5a60">/10</span></div>
+      </div>
+      <div class="bar-track"><div class="bar-fill ${bc(c.score*10)}" style="width:${pct}%"></div></div>
+      <div class="cat-feedback">${c.feedback}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('resultsSection').innerHTML = `
+    <div class="results-header">
+      <div class="results-title">YOUR ANALYSIS</div>
+      <div class="overall-score">
+        <div class="score-number ${sc10(d.overall_score_10)}">${d.overall_score_10}<span style="font-size:22px;color:#4a5a60">/10</span></div>
+        <div class="score-label">Grade: ${d.overall_grade}</div>
+      </div>
+    </div>
+    ${d.handedness_note ? `<div class="summary-card" style="background:#0d1018;border-color:#2a3040"><h4>Detected</h4><p>${d.handedness_note}</p></div>` : ''}
+    <div class="summary-card"><h4>Coach's Take</h4><p>${d.summary}</p></div>
+    ${d.goal_feedback ? `<div class="summary-card" style="border-color:#3a3020;background:#1a1a08"><h4 style="color:#f6c90e">🎯 Goal: ${opts.goal.replace('_',' ')}</h4><p>${d.goal_feedback}</p></div>` : ''}
+    ${catsHTML}
+    <div class="fix-card"><h4>🔧 #1 Thing To Fix</h4><p>${d.top_fix}</p></div>
+    <div class="tip-row">
+      <div class="tip-card"><h4>⬆️ Hangtime Tip</h4><p>${d.hangtime_tip}</p></div>
+      <div class="tip-card"><h4>📏 Distance Tip</h4><p>${d.distance_tip}</p></div>
+    </div>
+    <div style="background:#0a0f0a;border:1px solid #2a3a2a;border-radius:12px;padding:16px;margin-top:14px;font-size:11px;color:#5a7a5a">
+      <div style="font-weight:700;letter-spacing:1px;color:#4fd1c5;margin-bottom:8px">DEBUG — AI CHECKLIST ANSWERS</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px">
+        ${Object.entries(d._debug?.checklist||{}).map(([k,v])=>`<div><span style="color:#8a90a0">${k.replace(/_/g,' ')}:</span> <span style="color:${v==='yes'?'#4ade80':v==='partial'?'#f6c90e':'#f87171'};font-weight:700">${v}</span></div>`).join('')}
+      </div>
+      <div style="margin-top:8px;color:#5a7a5a">outcome pts: ${d._debug?.outcomePts}/4 &nbsp;|&nbsp; form pts: ${d._debug?.formPts}/4 &nbsp;|&nbsp; weighted: ${d._debug?.weightedTotal?.toFixed(2)}/10</div>
+    </div>
+    <button class="btn-reset" onclick="resetApp()">← Analyze Another Punt</button>
+  `;
+  show('resultsSection');
+}
+
+function resetApp() {
+  videoFile=null; isImage=false;
+  document.getElementById('videoEl').src='';
+  document.getElementById('fileInput').value='';
+  document.getElementById('framesRow').innerHTML='';
+  document.getElementById('progressFill').style.width='0%';
+  show('uploadSection');
+  ['previewSection','imgPreviewSection','progressSection','resultsSection','errorBox'].forEach(hide);
+}
+
+// Helpers
+const show = id => document.getElementById(id).classList.remove('hidden');
+const hide = id => document.getElementById(id).classList.add('hidden');
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+const setProgress = (pct,label) => {
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressLabel').innerHTML = pct<100?`<span class="spinner"></span>${label}`:label;
+};
+const showError = msg => {
+  document.getElementById('errorBox').textContent='⚠️ '+msg;
+  show('errorBox');
+};
+function fileToBase64(file) {
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result.split(',')[1]);
+    r.onerror=()=>rej(new Error('Failed to read file'));
+    r.readAsDataURL(file);
+  });
+}
+
+// ===== POSE OVERLAY PLAYER =====
+// Connections between landmarks for drawing the skeleton (MediaPipe Pose indices)
+const POSE_CONNECTIONS = [
+  [11,12],[11,13],[13,15],[12,14],[14,16], // shoulders/arms
+  [11,23],[12,24],[23,24], // torso
+  [23,25],[25,27],[27,29],[27,31],[29,31], // left leg
+  [24,26],[26,28],[28,30],[28,32],[30,32]  // right leg
+];
+
+let poseInstance = null;
+let poseFrameData = []; // { time, landmarks }
+let poseAnimFrame = null;
+let poseDuration = 0;
+let poseCaptions = []; // { time, text }
+
+async function setupPosePlayer(file, analysisResult) {
+  const poseVideo = document.getElementById('poseVideoEl');
+  const poseCanvas = document.getElementById('poseCanvas');
+  const statusEl = document.getElementById('poseStatus');
+  show('posePlayerSection');
+  statusEl.textContent = 'Tracking your form...';
+
+  poseFrameData = [];
+  poseVideo.src = URL.createObjectURL(file);
+
+  await new Promise(res => {
+    poseVideo.addEventListener('loadedmetadata', () => {
+      poseCanvas.width = poseVideo.videoWidth || 640;
+      poseCanvas.height = poseVideo.videoHeight || 360;
+      poseDuration = poseVideo.duration;
+      res();
+    }, { once: true });
+  });
+
+  // Build captions from the AI's category feedback, spread across the clip's timeline
+  poseCaptions = buildCaptionsFromResult(analysisResult, poseDuration);
+
+  try {
+    if (!poseInstance) {
+      poseInstance = new Pose({
+        locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1635988162/${f}`
+      });
+      poseInstance.setOptions({
+        modelComplexity: 1,
+        smoothLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+    }
+
+    // Sample ~15 points across the clip and run pose detection on each
+    const sampleCount = 15;
+    for (let i = 0; i < sampleCount; i++) {
+      const t = (i / (sampleCount - 1)) * poseDuration * 0.96; // stay inside bounds
+      const landmarks = await detectPoseAtTime(poseVideo, poseInstance, t);
+      poseFrameData.push({ time: t, landmarks });
+      statusEl.textContent = `Tracking your form... ${Math.round(((i+1)/sampleCount)*100)}%`;
+    }
+
+    poseFrameData.sort((a,b) => a.time - b.time);
+    statusEl.textContent = 'Tracking complete — scrub to explore';
+  } catch (e) {
+    console.error('Pose tracking failed:', e);
+    statusEl.textContent = 'Form view ready (tracking unavailable)';
+  }
+
+  poseVideo.currentTime = 0;
+  drawPoseFrame(0);
+  setupPoseControls(poseVideo, poseCanvas);
+}
+
+function detectPoseAtTime(video, pose, time) {
+  return new Promise((resolve) => {
+    let resolved = false;
+    pose.onResults((results) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(results.poseLandmarks || null);
+    });
+    const onSeeked = async () => {
+      video.removeEventListener('seeked', onSeeked);
+      try { await pose.send({ image: video }); } catch(e) { /* ignore single-frame failures */ }
+      // Fallback in case onResults never fires
+      setTimeout(() => { if (!resolved) { resolved = true; resolve(null); } }, 800);
+    };
+    video.addEventListener('seeked', onSeeked, { once: true });
+    video.currentTime = time;
+  });
+}
+
+function buildCaptionsFromResult(result, duration) {
+  if (!result || !result.categories) return [];
+  const cats = result.categories;
+  return cats.map((cat, i) => {
+    const isNA = cat.score === null || cat.score === undefined || cat.score === '';
+    return {
+      time: (duration * 0.96) * (i / cats.length),
+      text: isNA ? `${cat.name} N/A — ${cat.tip || ''}` : `${cat.name} ${cat.score}/10 — ${cat.tip || ''}`,
+      score: isNA ? null : cat.score
+    };
+  });
+}
+
+function findNearestPoseFrame(t) {
+  if (!poseFrameData.length) return null;
+  let nearest = poseFrameData[0];
+  let bestDiff = Math.abs(nearest.time - t);
+  for (const f of poseFrameData) {
+    const d = Math.abs(f.time - t);
+    if (d < bestDiff) { bestDiff = d; nearest = f; }
+  }
+  return nearest;
+}
+
+function findActiveCaption(t) {
+  if (!poseCaptions.length) return null;
+  let active = poseCaptions[0];
+  for (const c of poseCaptions) {
+    if (c.time <= t) active = c; else break;
+  }
+  return active;
+}
+
+function positionCaption(capEl, canvas, bodyBounds, t, duration) {
+  // canvas is drawn centered inside .pose-stage; canvas.width/height are intrinsic pixel size,
+  // but displayed size can differ, so we map percentages of the body onto the canvas's rendered box.
+  const rect = canvas.getBoundingClientRect();
+  const stageRect = canvas.parentElement.getBoundingClientRect();
+  const canvasOffsetLeft = rect.left - stageRect.left;
+  const canvasOffsetTop = rect.top - stageRect.top;
+
+  const EDGE_MARGIN_PCT = 0.04; // keep this much margin from each side of the frame
+
+  capEl.style.right = 'auto';
+  capEl.style.bottom = 'auto';
+
+  // Estimate whether the ball has likely been released: punts release in roughly
+  // the back third of the clip after the leg swing. Once we're past that point,
+  // move the caption to the bottom so it doesn't block the ball's flight path.
+  const releaseEstimatePct = 0.62;
+  const pastRelease = duration > 0 && (t / duration) > releaseEstimatePct;
+  const topPct = pastRelease ? 0.74 : 0.05;
+
+  // Default horizontal fallback if we have no body data yet
+  if (!bodyBounds) {
+    capEl.style.maxWidth = Math.max(rect.width * (1 - EDGE_MARGIN_PCT * 2), 160) + 'px';
+    capEl.style.left = (canvasOffsetLeft + rect.width * EDGE_MARGIN_PCT) + 'px';
+    capEl.style.top = (canvasOffsetTop + rect.height * topPct) + 'px';
+    return;
+  }
+
+  const w = canvas.width;
+  const bodyCenterXPct = ((bodyBounds.minX + bodyBounds.maxX) / 2) / w; // 0-1
+
+  // Pick whichever horizontal side (left or right of the body) has more open room,
+  // so the bubble never overlaps the torso/arms either.
+  const useRightSide = (1 - bodyCenterXPct) > bodyCenterXPct;
+
+  // The bubble's left edge and max-width must always sum to <= (1 - EDGE_MARGIN_PCT) of the
+  // frame width, or it can overflow past the right side on longer captions. We compute an
+  // explicit available width for whichever side we land on, rather than using a fixed
+  // max-width that doesn't account for where "left" actually is.
+  let leftPct, availableWidthPct;
+  if (useRightSide) {
+    leftPct = Math.max(bodyCenterXPct + 0.06, 0.50);
+    availableWidthPct = 1 - EDGE_MARGIN_PCT - leftPct;
+  } else {
+    leftPct = EDGE_MARGIN_PCT;
+    availableWidthPct = Math.min(bodyCenterXPct - 0.06, 0.50) - leftPct;
+  }
+  // Safety floor so the bubble never gets squeezed unreasonably narrow
+  availableWidthPct = Math.max(availableWidthPct, 0.36);
+
+  capEl.style.maxWidth = Math.max(rect.width * availableWidthPct, 160) + 'px';
+  capEl.style.left = (canvasOffsetLeft + rect.width * leftPct) + 'px';
+  capEl.style.top = (canvasOffsetTop + rect.height * topPct) + 'px';
+}
+
+function scoreStatusColor(score) {
+  // score is out of 10 — green 8+, yellow 4-7, red 0-3
+  if (score >= 8) return '#4ade80'; // green
+  if (score >= 4) return '#f6c90e'; // yellow
+  return '#f87171'; // red
+}
+
+function drawPoseFrame(t) {
+  const poseVideo = document.getElementById('poseVideoEl');
+  const poseCanvas = document.getElementById('poseCanvas');
+  const ctx = poseCanvas.getContext('2d');
+  ctx.clearRect(0,0,poseCanvas.width, poseCanvas.height);
+  try { ctx.drawImage(poseVideo, 0, 0, poseCanvas.width, poseCanvas.height); } catch(e){}
+
+  const frame = findNearestPoseFrame(t);
+  let bodyBounds = null;
+  let anchorPoint = null; // point to draw the leader line from, in canvas pixel coords
+
+  if (frame && frame.landmarks) {
+    const lm = frame.landmarks;
+    const w = poseCanvas.width, h = poseCanvas.height;
+
+    // Draw connections
+    ctx.strokeStyle = '#4fd1c5';
+    ctx.lineWidth = 3;
+    POSE_CONNECTIONS.forEach(([a,b]) => {
+      if (lm[a] && lm[b]) {
+        ctx.beginPath();
+        ctx.moveTo(lm[a].x * w, lm[a].y * h);
+        ctx.lineTo(lm[b].x * w, lm[b].y * h);
+        ctx.stroke();
+      }
+    });
+    // Draw joints
+    ctx.fillStyle = '#4fd1c5';
+    const joints = [11,12,13,14,15,16,23,24,25,26,27,28,29,30,31,32];
+    joints.forEach(i => {
+      if (lm[i]) {
+        ctx.beginPath();
+        ctx.arc(lm[i].x * w, lm[i].y * h, 5, 0, Math.PI*2);
+        ctx.fill();
+      }
+    });
+
+    // Compute the body's bounding box in pixel space so we know where the open space is
+    const xs = joints.filter(i => lm[i]).map(i => lm[i].x * w);
+    const ys = joints.filter(i => lm[i]).map(i => lm[i].y * h);
+    if (xs.length) {
+      bodyBounds = { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+      anchorPoint = { x: (bodyBounds.minX + bodyBounds.maxX) / 2, y: bodyBounds.minY };
+    }
+  }
+
+  // Caption — positioned dynamically in the open space beside the body
+  const cap = findActiveCaption(t);
+  const capEl = document.getElementById('poseCaption');
+  const capTextEl = document.getElementById('poseCaptionText');
+  const capDotEl = capEl.querySelector('.pose-caption-dot');
+  if (cap) {
+    capTextEl.textContent = cap.text;
+    if (capDotEl && typeof cap.score === 'number') {
+      capDotEl.style.background = scoreStatusColor(cap.score);
+    }
+    positionCaption(capEl, poseCanvas, bodyBounds, t, poseDuration);
+    capEl.classList.remove('hidden');
+  } else {
+    capEl.classList.add('hidden');
+  }
+
+  document.getElementById('poseScrub').value = poseDuration ? (t / poseDuration) * 100 : 0;
+}
+
+let poseControlsBound = false;
+function setupPoseControls(video, canvas) {
+  const scrub = document.getElementById('poseScrub');
+  const playBtn = document.getElementById('posePlayBtn');
+
+  drawPoseFrame(video.currentTime || 0);
+
+  if (poseControlsBound) return; // avoid double-binding listeners across multiple analyses
+  poseControlsBound = true;
+
+  scrub.addEventListener('input', () => {
+    video.pause();
+    playBtn.textContent = '▶';
+    const t = (scrub.value / 100) * video.duration;
+    video.currentTime = t;
+  });
+
+  video.addEventListener('seeked', () => drawPoseFrame(video.currentTime));
+
+  function renderLoop() {
+    if (!video.paused && !video.ended) {
+      drawPoseFrame(video.currentTime);
+      poseAnimFrame = requestAnimationFrame(renderLoop);
+    }
+  }
+  video.addEventListener('play', () => { poseAnimFrame = requestAnimationFrame(renderLoop); });
+  video.addEventListener('pause', () => { if (poseAnimFrame) cancelAnimationFrame(poseAnimFrame); });
+  video.addEventListener('ended', () => { playBtn.textContent = '▶'; });
+}
+
+function togglePosePlay() {
+  const video = document.getElementById('poseVideoEl');
+  const playBtn = document.getElementById('posePlayBtn');
+  if (video.paused) { video.play(); playBtn.textContent = '⏸'; }
+  else { video.pause(); playBtn.textContent = '▶'; }
+}
+
+function setPoseSpeed(speed, btn) {
+  const video = document.getElementById('poseVideoEl');
+  video.playbackRate = speed;
+  document.querySelectorAll('.pose-speed-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function stopPosePlayback() {
+  const video = document.getElementById('poseVideoEl');
+  if (video) { video.pause(); }
+  if (poseAnimFrame) cancelAnimationFrame(poseAnimFrame);
+}
+</script>
+</body>
+</html>
